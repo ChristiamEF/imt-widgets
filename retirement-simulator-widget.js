@@ -168,8 +168,8 @@
         ['initial-investment', 'monthly-savings', 'desired-lifestyle'].forEach(id => { document.getElementById(`dash-${id}`).value = formatForDisplay(getNumericVal(`wiz-${id}`)); });
         document.getElementById('dash-current-age').value = getNumericVal('wiz-current-age');
         document.getElementById('dash-retirement-age').value = getNumericVal('wiz-retirement-age');
-        document.getElementById('dash-inflation-rate').value = "3,0";
-        document.getElementById('dash-perpetuity-rate').value = "4,0";
+        document.getElementById('dash-inflation-rate').value = 3.0;
+        document.getElementById('dash-perpetuity-rate').value = 4.0;
         document.getElementById('rc-wizard').style.display = 'none';
         document.getElementById('rc-dashboard').style.display = 'block';
         calculateAndRender();
