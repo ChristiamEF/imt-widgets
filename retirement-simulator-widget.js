@@ -1,6 +1,6 @@
 /**
  * =================================================================================
- * WIDGET SIMULADOR DE RETIRO v1.2 (Final, Comentado y con Fix Responsive)
+ * WIDGET SIMULADOR DE RETIRO v1.4 (Final, con Fix de Resize y Comentarios)
  * Creado para ser seguro, embedible y responsive.
  * ---------------------------------------------------------------------------------
  * Este script crea una calculadora de retiro interactiva dentro de un div específico.
@@ -39,21 +39,12 @@
     // Esto hace que el widget sea un componente verdaderamente portátil.
     const widgetHTML = `
         <style>
-            /* Reset básico para el contenedor para evitar herencias de estilos no deseadas. */
             .rc-card-container, .rc-card-container * { margin: 0; padding: 0; box-sizing: border-box; }
-            
             .rc-card-container {
                 font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-                width: 100%;
-                max-width: 950px;
-                margin: 20px auto; /* Centra el widget y le da espacio vertical. */
-                background: #ffffff;
-                border: 2px solid #1a1a1a;
-                border-radius: 24px;
-                box-shadow: 0 10px 0 #1a1a1a; /* La sombra sólida distintiva. */
-                padding: 40px;
-                color: #1a1a1a;
-                transition: all 0.5s ease;
+                width: 100%; max-width: 950px; margin: 20px auto; background: #ffffff;
+                border: 2px solid #1a1a1a; border-radius: 24px; box-shadow: 0 10px 0 #1a1a1a;
+                padding: 40px; color: #1a1a1a; transition: all 0.5s ease;
             }
             .rc-wizard-step { display: none; }
             .rc-wizard-step.active { display: block; animation: rc-fadeIn 0.5s ease-in-out; }
@@ -100,56 +91,8 @@
         
         <div class="rc-card-container" id="main-container">
             <!-- (El HTML sigue aquí...) -->
-             <div id="rc-wizard">
-                <div class="rc-progress-bar"><div class="rc-progress-fill" id="rc-progress-fill"></div></div>
-                <div class="rc-wizard-step active" id="step1">
-                    <p class="rc-question">🎂 ¿Cuál es tu edad actual y a qué edad planeas retirarte?</p>
-                    <div class="rc-input-row">
-                        <div class="rc-input-wrapper"><input type="number" id="wiz-current-age" value="25"><label>Edad Actual</label></div>
-                        <div class="rc-input-wrapper"><input type="number" id="wiz-retirement-age" value="67"><label>Edad de Retiro</label></div>
-                    </div>
-                    <div class="rc-navigation"><div></div><button class="rc-btn" id="btn-step1-next">Siguiente →</button></div>
-                </div>
-                <div class="rc-wizard-step" id="step2">
-                    <p class="rc-question">🏖️ En dinero de hoy, ¿qué costo de vida mensual te gustaría tener?</p>
-                    <div class="rc-input-wrapper" style="text-align: center;"><input type="text" id="wiz-desired-lifestyle" value="3.000"><label>Costo de Vida (€/mes)</label></div>
-                    <div class="rc-navigation"><button class="rc-btn secondary" id="btn-step2-prev">← Atrás</button><button class="rc-btn" id="btn-step2-next">Siguiente →</button></div>
-                </div>
-                <div class="rc-wizard-step" id="step3">
-                    <p class="rc-question">🌱 ¿Cuánto puedes aportar mensualmente y 💰 cuánto tienes ya disponible?</p>
-                    <div class="rc-input-row">
-                        <div class="rc-input-wrapper"><input type="text" id="wiz-monthly-savings" value="500"><label>Ahorro Mensual (€)</label></div>
-                        <div class="rc-input-wrapper"><input type="text" id="wiz-initial-investment" value="10.000"><label>Disponible Ya (€)</label></div>
-                    </div>
-                    <div class="rc-navigation"><button class="rc-btn secondary" id="btn-step3-prev">← Atrás</button><button class="rc-btn" id="btn-show-dash">Crear Mi Simulador 🚀</button></div>
-                </div>
-            </div>
-            <div id="rc-dashboard" style="display: none;">
-                <div class="rc-dashboard-grid">
-                    <div class="rc-controls-panel">
-                        <h3>🛠️ Tus Palancas</h3>
-                        <div class="rc-dash-input-group"><label>🎂 Edad actual</label><input type="number" id="dash-current-age"></div>
-                        <div class="rc-dash-input-group"><label>🏁 Edad de retiro</label><input type="number" id="dash-retirement-age"></div>
-                        <div class="rc-dash-input-group"><label>💰 Disponible inicial (€)</label><input type="text" id="dash-initial-investment"></div>
-                        <div class="rc-dash-input-group"><label>🌱 Ahorro mensual (€)</label><input type="text" id="dash-monthly-savings"></div>
-                        <div class="rc-dash-input-group"><label>🏖️ Costo de vida (€/mes)</label><input type="text" id="dash-desired-lifestyle"></div>
-                        <h3 style="margin-top: 20px;">📈 Parámetros de Mercado</h3>
-                        <div class="rc-dash-input-group"><label>🔥 Inflación anual (%)</label><input type="number" id="dash-inflation-rate" step="0.1"></div>
-                        <div class="rc-dash-input-group"><label>🏦 Tasa perpetuidad (%)</label><input type="number" id="dash-perpetuity-rate" step="0.1"></div>
-                    </div>
-                    <div class="rc-results-display">
-                        <div class="rc-chart-container"><canvas id="retirementChart"></canvas></div>
-                        <div class="rc-results-panel">
-                            <div class="rc-result-item main-result"><label>🎯 Rendimiento Anual Requerido</label><div class="rc-value" id="rc-out-required-rate">--</div></div>
-                            <div class="rc-result-item"><label>💰 Portafolio Objetivo</label><div class="rc-value" id="rc-out-target-portfolio">--</div></div>
-                            <div class="rc-result-item"><label>🎢 Tolerancia al Riesgo</label><div class="rc-value" id="rc-out-risk-profile">--</div></div>
-                            <div class="rc-result-item"><label>💸 Costo Vida (Retiro)</label><div class="rc-value" id="rc-out-future-cost">--</div></div>
-                            <div class="rc-result-item"><label>🗓️ Horizonte</label><div class="rc-value" id="rc-out-horizon">--</div></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="rc-navigation" style="justify-content: center; margin-top: 30px;"><button class="rc-btn secondary" id="btn-back-to-wiz">← Volver al Asistente</button></div>
-            </div>
+            <div id="rc-wizard"><div class="rc-progress-bar"><div class="rc-progress-fill" id="rc-progress-fill"></div></div><div class="rc-wizard-step active" id="step1"><p class="rc-question">🎂 ¿Cuál es tu edad actual y a qué edad planeas retirarte?</p><div class="rc-input-row"><div class="rc-input-wrapper"><input type="number" id="wiz-current-age" value="25"><label>Edad Actual</label></div><div class="rc-input-wrapper"><input type="number" id="wiz-retirement-age" value="67"><label>Edad de Retiro</label></div></div><div class="rc-navigation"><div></div><button class="rc-btn" id="btn-step1-next">Siguiente →</button></div></div><div class="rc-wizard-step" id="step2"><p class="rc-question">🏖️ En dinero de hoy, ¿qué costo de vida mensual te gustaría tener?</p><div class="rc-input-wrapper" style="text-align: center;"><input type="text" id="wiz-desired-lifestyle" value="3.000"><label>Costo de Vida (€/mes)</label></div><div class="rc-navigation"><button class="rc-btn secondary" id="btn-step2-prev">← Atrás</button><button class="rc-btn" id="btn-step2-next">Siguiente →</button></div></div><div class="rc-wizard-step" id="step3"><p class="rc-question">🌱 ¿Cuánto puedes aportar mensualmente y 💰 cuánto tienes ya disponible?</p><div class="rc-input-row"><div class="rc-input-wrapper"><input type="text" id="wiz-monthly-savings" value="500"><label>Ahorro Mensual (€)</label></div><div class="rc-input-wrapper"><input type="text" id="wiz-initial-investment" value="10.000"><label>Disponible Ya (€)</label></div></div><div class="rc-navigation"><button class="rc-btn secondary" id="btn-step3-prev">← Atrás</button><button class="rc-btn" id="btn-show-dash">Crear Mi Simulador 🚀</button></div></div></div>
+            <div id="rc-dashboard" style="display: none;"><div class="rc-dashboard-grid"><div class="rc-controls-panel"><h3>🛠️ Tus Palancas</h3><div class="rc-dash-input-group"><label>🎂 Edad actual</label><input type="number" id="dash-current-age"></div><div class="rc-dash-input-group"><label>🏁 Edad de retiro</label><input type="number" id="dash-retirement-age"></div><div class="rc-dash-input-group"><label>💰 Disponible inicial (€)</label><input type="text" id="dash-initial-investment"></div><div class="rc-dash-input-group"><label>🌱 Ahorro mensual (€)</label><input type="text" id="dash-monthly-savings"></div><div class="rc-dash-input-group"><label>🏖️ Costo de vida (€/mes)</label><input type="text" id="dash-desired-lifestyle"></div><h3 style="margin-top: 20px;">📈 Parámetros de Mercado</h3><div class="rc-dash-input-group"><label>🔥 Inflación anual (%)</label><input type="number" id="dash-inflation-rate" step="0.1"></div><div class="rc-dash-input-group"><label>🏦 Tasa perpetuidad (%)</label><input type="number" id="dash-perpetuity-rate" step="0.1"></div></div><div class="rc-results-display"><div class="rc-chart-container"><canvas id="retirementChart"></canvas></div><div class="rc-results-panel"><div class="rc-result-item main-result"><label>🎯 Rendimiento Anual Requerido</label><div class="rc-value" id="rc-out-required-rate">--</div></div><div class="rc-result-item"><label>💰 Portafolio Objetivo</label><div class="rc-value" id="rc-out-target-portfolio">--</div></div><div class="rc-result-item"><label>🎢 Tolerancia al Riesgo</label><div class="rc-value" id="rc-out-risk-profile">--</div></div><div class="rc-result-item"><label>💸 Costo Vida (Retiro)</label><div class="rc-value" id="rc-out-future-cost">--</div></div><div class="rc-result-item"><label>🗓️ Horizonte</label><div class="rc-value" id="rc-out-horizon">--</div></div></div></div></div><div class="rc-navigation" style="justify-content: center; margin-top: 30px;"><button class="rc-btn secondary" id="btn-back-to-wiz">← Volver al Asistente</button></div></div>
         </div>
     `;
 
@@ -159,11 +102,30 @@
     const parseFormattedNumber = (str) => { if (typeof str !== 'string') str = String(str); return parseFloat(str.replace(/\./g, '').replace(/,/g, '.')) || 0; };
     const getNumericVal = (id) => parseFormattedNumber(document.getElementById(id).value);
 
-    // --- LÓGICA DEL WIZARD ---
+    /**
+     * Crea una versión "debounced" de una función. La función debounced solo se ejecutará
+     * una vez que haya pasado un cierto tiempo sin que se llame. Esencial para eventos
+     * que se disparan rápidamente como 'resize' o 'input'.
+     * @param {Function} func - La función a ejecutar después del tiempo de espera.
+     * @param {number} delay - El tiempo de espera en milisegundos.
+     * @returns {Function} La nueva función debounced.
+     */
+    const debounce = (func, delay = 250) => {
+        let timeoutId;
+        return (...args) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
+    };
+
+    // --- LÓGICA DEL WIZARD Y TRANSICIONES ---
     
     function updateProgress() { document.getElementById('rc-progress-fill').style.width = (currentStep - 1) / totalSteps * 100 + '%'; }
     function nextStep() { if (currentStep < totalSteps) { document.getElementById(`step${currentStep}`).classList.remove('active'); currentStep++; document.getElementById(`step${currentStep}`).classList.add('active'); updateProgress(); } }
     function prevStep() { if (currentStep > 1) { document.getElementById(`step${currentStep}`).classList.remove('active'); currentStep--; document.getElementById(`step${currentStep}`).classList.add('active'); updateProgress(); } }
+    
     function showDashboard() {
         ['initial-investment', 'monthly-savings', 'desired-lifestyle'].forEach(id => { document.getElementById(`dash-${id}`).value = formatForDisplay(getNumericVal(`wiz-${id}`)); });
         document.getElementById('dash-current-age').value = getNumericVal('wiz-current-age');
@@ -191,6 +153,7 @@
         renderTextResults(requiredRate, targetPortfolio, futureMonthlyCost, yearsToAccumulate);
         renderRetirementChart(yearsToAccumulate, initialInvestment, annualSavings, isNaN(requiredRate) ? 0.08 : requiredRate);
     }
+    
     function renderTextResults(rate, portfolio, cost, years) {
         let riskProfile = '--';
         const requiredRateEl = document.getElementById('rc-out-required-rate');
@@ -206,6 +169,7 @@
         document.getElementById('rc-out-future-cost').textContent = formatCurrency(cost) + '/mes';
         document.getElementById('rc-out-horizon').textContent = years + ' años';
     }
+
     function renderRetirementChart(years, pv, pmt, rate) {
         const labels = Array.from({ length: years + 1 }, (_, i) => i);
         const principalData = [], interestData = [];
@@ -220,6 +184,7 @@
         if (retirementChartInstance) retirementChartInstance.destroy();
         retirementChartInstance = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Ahorro Acumulado', data: principalData, backgroundColor: '#cccccc'}, { label: 'Interés Compuesto', data: interestData, backgroundColor: '#333333'}]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#555' }}}, scales: { x: { stacked: true, grid: { color: '#f0f2f5' }, ticks: { color: '#555' } }, y: { stacked: true, grid: { color: '#f0f2f5' }, ticks: { color: '#555', callback: value => new Intl.NumberFormat('es-ES', {notation: "compact"}).format(value) }}}} });
     }
+    
     function calculateRequiredRate(target, years, pmt, pv) { if (years <= 0) return 0; let low = -0.99, high = 2, mid, fv; let i = 0; if (pv + pmt * years >= target) return 0; do { mid = (low + high) / 2; fv = mid === 0 ? pv + pmt * years : pv * Math.pow(1 + mid, years) + pmt * ((Math.pow(1 + mid, years) - 1) / mid); if (fv < target) { low = mid; } else { high = mid; } i++; } while (Math.abs(fv - target) > 1 && i < 100); if (i === 100 && Math.abs(fv - target) > 1000) return NaN; return mid; }
     
     /**
@@ -227,8 +192,8 @@
      * Renderiza el HTML inicial y asigna todos los event listeners.
      */
     function initializeWidget() {
-        // Inyecta la estructura HTML y CSS en el div contenedor.
         container.innerHTML = widgetHTML;
+        
         // Asigna las funciones a los botones del Wizard.
         document.getElementById('btn-step1-next').addEventListener('click', nextStep);
         document.getElementById('btn-step2-prev').addEventListener('click', prevStep);
@@ -236,6 +201,7 @@
         document.getElementById('btn-step3-prev').addEventListener('click', prevStep);
         document.getElementById('btn-show-dash').addEventListener('click', showDashboard);
         document.getElementById('btn-back-to-wiz').addEventListener('click', goBackToWizard);
+        
         // Asigna los listeners para el formateo de números.
         const fieldsToFormat = [ 'wiz-desired-lifestyle', 'wiz-monthly-savings', 'wiz-initial-investment', 'dash-initial-investment', 'dash-monthly-savings', 'dash-desired-lifestyle' ];
         fieldsToFormat.forEach(id => {
@@ -245,8 +211,22 @@
                 input.addEventListener('focus', () => { if(input.value) input.value = parseFormattedNumber(input.value); });
             }
         });
+
         // Asigna los listeners a los inputs del dashboard para el recálculo en tiempo real.
-        document.querySelectorAll('#rc-dashboard input').forEach(input => { input.addEventListener('input', calculateAndRender); });
+        // Se usa la versión "debounced" para mejorar el rendimiento.
+        const debouncedCalculate = debounce(calculateAndRender, 300);
+        document.querySelectorAll('#rc-dashboard input').forEach(input => {
+            input.addEventListener('input', debouncedCalculate);
+        });
+
+        // ========================================================================
+        // === CORRECCIÓN APLICADA AQUÍ ===
+        // Se añade un listener para el evento 'resize' de la ventana.
+        // Se usa la versión "debounced" para que la gráfica solo se redibuje
+        // cuando el usuario termina de ajustar el tamaño, mejorando el rendimiento.
+        // ========================================================================
+        window.addEventListener('resize', debounce(calculateAndRender, 250));
+        
         // Establece el estado inicial de la barra de progreso.
         updateProgress();
     }
