@@ -36,41 +36,215 @@
     
     function formatNumber(num) {
         try {
-            return new Intl.NumberFormat('es-ES').format(num);
+            return new Intl.NumberFormat('es-ES', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }).format(num);
         } catch (e) {
             return num.toString();
         }
     }
     
-    // Función mejorada para parsear números con formato europeo
+    // Función corregida para parsear números con formato europeo
     function parseFormattedNumber(value) {
-        if (typeof value !== 'string') return parseFloat(value) || 0;
-        
-        // Eliminar espacios y caracteres no numéricos excepto comas y puntos
-        let cleaned = value.replace(/[^\d.,\-]/g, '');
-        
-        // Si hay tanto coma como punto, determinar cuál es el separador decimal
-        if (cleaned.includes(',') && cleaned.includes('.')) {
-            // Si el punto está después de la coma, la coma es separador de miles
-            if (cleaned.lastIndexOf('.') > cleaned.lastIndexOf(',')) {
-                cleaned = cleaned.replace(/,/g, '');
-            } else {
-                // Si la coma está después del punto, el punto es separador de miles
-                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
-            }
-        } else if (cleaned.includes(',')) {
-            // Solo coma: puede ser separador de miles o decimal
-            const parts = cleaned.split(',');
-            if (parts.length === 2 && parts[1].length <= 2) {
-                // Probablemente separador decimal
-                cleaned = cleaned.replace(',', '.');
-            } else {
-                // Probablemente separador de miles
-                cleaned = cleaned.replace(/,/g, '');
-            }
+        if (typeof value !== 'string') {
+            return parseFloat(value) || 0;
         }
         
-        return parseFloat(cleaned) || 0;
+        // Si está vacío, retornar 0
+        if (!value.trim()) return 0;
+        
+        // Eliminar espacios y caracteres no numéricos excepto puntos, comas y signos negativos
+        let cleaned = value.trim().replace(/[^\d.,-]/g, '');
+        
+        // Si no hay nada después de limpiar, retornar 0
+        if (!cleaned) return 0;
+        
+        // Casos especiales
+        if (cleaned === '.' || cleaned === ',' || cleaned === '-') return 0;
+        
+        // Si tiene tanto punto como coma
+        if (cleaned.includes('.') && cleaned.includes(',')) {
+            const lastDot = cleaned.lastIndexOf('.');
+            const lastComma = cleaned.lastIndexOf(',');
+            
+            if (lastComma > lastDot) {
+                // La coma está después del punto, entonces el punto es separador de miles
+                // Ejemplo: 1.000,50
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else {
+                // El punto está después de la coma, entonces la coma es separador de miles
+                // Ejemplo: 1,000.50
+                cleaned = cleaned.replace(/,/g, '');
+            }
+        } else if (cleaned.includes(',')) {
+            // Solo tiene coma
+            const commaParts = cleaned.split(',');
+            
+            if (commaParts.length === 2 && commaParts[1].length <= 2) {
+                // Parece ser separador decimal (ej: 123,45)
+                cleaned = cleaned.replace(',', '.');
+            } else {
+                // Parece ser separador de miles (ej: 10,000)
+                cleaned = cleaned.replace(/,/g, '');
+            }
+        } else if (cleaned.includes('.')) {
+            // Solo tiene punto
+            const dotParts = cleaned.split('.');
+            
+            // Si hay múltiples puntos o el último grupo tiene más de 2 dígitos, son separadores de miles
+            if (dotParts.length > 2 || (dotParts.length === 2 && dotParts[1].length > 2)) {
+                // Es separador de miles (ej: 10.000 o 1.000.000)
+                cleaned = cleaned.replace(/\./g, '');
+            }
+            // Si hay solo un punto y máximo 2 decimales, lo dejamos como separador decimal
+        }
+        
+        const result = parseFloat(cleaned) || 0;
+        return result;
+    }
+    
+    // Función para generar CSV
+    function generateCSVData() {
+        const data = {
+            // Información básica
+            fecha_analisis: new Date().toLocaleDateString('es-ES'),
+            
+            // Paso 1: Ingresos
+            ingresos_mensuales: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-monthly-income`).value),
+            estabilidad_ingresos: document.getElementById(`${WIDGET_PREFIX}-income-stability`).value,
+            fuente_salario: document.getElementById(`${WIDGET_PREFIX}-source-salary`).checked,
+            fuente_freelance: document.getElementById(`${WIDGET_PREFIX}-source-freelance`).checked,
+            fuente_negocio: document.getElementById(`${WIDGET_PREFIX}-source-business`).checked,
+            fuente_inversiones: document.getElementById(`${WIDGET_PREFIX}-source-investments`).checked,
+            fuente_otros: document.getElementById(`${WIDGET_PREFIX}-source-other`).checked,
+            
+            // Paso 2: Gastos (No Negociables desglosados)
+            vivienda: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-housing`).value),
+            alimentacion: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-food`).value),
+            transporte: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-transport`).value),
+            salud_seguros: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-health`).value),
+            servicios: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-utilities`).value),
+            pagos_deuda: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value),
+            total_no_negociables: getNonNegotiablesTotal(),
+            
+            // Otros gastos Big Five
+            ahorro: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-savings`).value),
+            inversion: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-investment`).value),
+            viva_la_vida: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-lifestyle`).value),
+            granito_arena: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-giving`).value),
+            
+            // Paso 3: Activos
+            activos_liquidos: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-liquid-assets`).value),
+            activos_no_liquidos: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-illiquid-assets`).value),
+            efectivo_disponible: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-cash`).value),
+            fondo_emergencia: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-emergency-fund`).value),
+            total_activos: getTotalAssets(),
+            
+            // Paso 4: Deudas
+            deuda_consumo: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-consumer-debt`).value),
+            deuda_hipotecaria: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-mortgage-debt`).value),
+            otra_deuda: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-other-debt`).value),
+            total_deudas: getTotalDebt(),
+            
+            // Métricas calculadas
+            total_gastos: getTotalExpenses(),
+            balance_mensual: data.ingresos_mensuales - getTotalExpenses(),
+            porcentaje_gastos: data.ingresos_mensuales > 0 ? Math.round((getTotalExpenses() / data.ingresos_mensuales) * 100) : 0,
+            solvencia: getTotalDebt() > 0 ? (getTotalAssets() / getTotalDebt()).toFixed(2) : '∞',
+            porcentaje_endeudamiento: getTotalAssets() > 0 ? Math.round((getTotalDebt() / getTotalAssets()) * 100) : 0,
+            porcentaje_deuda_ingresos: data.ingresos_mensuales > 0 ? Math.round((parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value) / data.ingresos_mensuales) * 100) : 0,
+            meses_emergencia: (getNonNegotiablesTotal() - parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value)) > 0 ? 
+                (parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-emergency-fund`).value) / (getNonNegotiablesTotal() - parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value))).toFixed(1) : 0,
+            meses_recomendados: getRecommendedEmergencyMonths()
+        };
+        
+        return data;
+    }
+    
+    // Función para descargar CSV
+    function downloadCSV() {
+        try {
+            const data = generateCSVData();
+            
+            // Crear el contenido CSV
+            const csvContent = [
+                ['Campo', 'Valor'],
+                ['Fecha de Análisis', data.fecha_analisis],
+                ['', ''], // Línea vacía
+                ['=== INGRESOS ===', ''],
+                ['Ingresos Mensuales (€)', data.ingresos_mensuales],
+                ['Estabilidad de Ingresos', data.estabilidad_ingresos],
+                ['Fuente: Salario', data.fuente_salario ? 'Sí' : 'No'],
+                ['Fuente: Freelance', data.fuente_freelance ? 'Sí' : 'No'],
+                ['Fuente: Negocio', data.fuente_negocio ? 'Sí' : 'No'],
+                ['Fuente: Inversiones', data.fuente_inversiones ? 'Sí' : 'No'],
+                ['Fuente: Otros', data.fuente_otros ? 'Sí' : 'No'],
+                ['', ''], // Línea vacía
+                ['=== NO NEGOCIABLES ===', ''],
+                ['Vivienda (€)', data.vivienda],
+                ['Alimentación (€)', data.alimentacion],
+                ['Transporte (€)', data.transporte],
+                ['Salud/Seguros (€)', data.salud_seguros],
+                ['Servicios (€)', data.servicios],
+                ['Pagos de Deuda (€)', data.pagos_deuda],
+                ['Total No Negociables (€)', data.total_no_negociables],
+                ['', ''], // Línea vacía
+                ['=== OTROS GASTOS ===', ''],
+                ['Ahorro (€)', data.ahorro],
+                ['Inversión (€)', data.inversion],
+                ['Viva la Vida (€)', data.viva_la_vida],
+                ['Granito de Arena (€)', data.granito_arena],
+                ['', ''], // Línea vacía
+                ['=== ACTIVOS ===', ''],
+                ['Activos Líquidos (€)', data.activos_liquidos],
+                ['Activos No Líquidos (€)', data.activos_no_liquidos],
+                ['Efectivo Disponible (€)', data.efectivo_disponible],
+                ['Fondo de Emergencia (€)', data.fondo_emergencia],
+                ['Total Activos (€)', data.total_activos],
+                ['', ''], // Línea vacía
+                ['=== DEUDAS ===', ''],
+                ['Deuda de Consumo (€)', data.deuda_consumo],
+                ['Deuda Hipotecaria (€)', data.deuda_hipotecaria],
+                ['Otra Deuda (€)', data.otra_deuda],
+                ['Total Deudas (€)', data.total_deudas],
+                ['', ''], // Línea vacía
+                ['=== MÉTRICAS CALCULADAS ===', ''],
+                ['Total Gastos Mensuales (€)', data.total_gastos],
+                ['Balance Mensual (€)', data.balance_mensual],
+                ['% de Ingresos Gastados', `${data.porcentaje_gastos}%`],
+                ['Solvencia (Activos/Deudas)', data.solvencia],
+                ['% Endeudamiento', `${data.porcentaje_endeudamiento}%`],
+                ['% Ingresos a Pago Deuda', `${data.porcentaje_deuda_ingresos}%`],
+                ['Meses de Emergencia Actuales', data.meses_emergencia],
+                ['Meses de Emergencia Recomendados', data.meses_recomendados]
+            ];
+            
+            // Convertir a string CSV
+            const csvString = csvContent.map(row => 
+                row.map(field => 
+                    typeof field === 'string' && field.includes(',') ? `"${field}"` : field
+                ).join(',')
+            ).join('\n');
+            
+            // Crear y descargar el archivo
+            const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `analisis_financiero_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Mostrar mensaje de éxito
+            showAlert('¡Archivo CSV descargado exitosamente!', 'success');
+            
+        } catch (error) {
+            console.error('Error generando CSV:', error);
+            showAlert('Error al generar el archivo CSV', 'danger');
+        }
     }
     
     // Crear el contenedor del widget
@@ -78,7 +252,7 @@
         const container = document.getElementById(`${WIDGET_PREFIX}-container`);
         if (!container) return;
         
-        // CSS integrado
+        // CSS integrado (mantiene todo el CSS anterior)
         const styles = `
             <style>
                 .${WIDGET_PREFIX}-widget {
@@ -242,6 +416,16 @@
                     background: #f0f0f0;
                 }
                 
+                .${WIDGET_PREFIX}-button-download {
+                    background: #28a745;
+                    color: white;
+                    border: none;
+                }
+                
+                .${WIDGET_PREFIX}-button-download:hover {
+                    background: #218838;
+                }
+                
                 .${WIDGET_PREFIX}-progress {
                     width: 100%;
                     height: 8px;
@@ -401,6 +585,15 @@
                     text-align: center;
                 }
                 
+                .${WIDGET_PREFIX}-download-section {
+                    background: #f0f8f0;
+                    border: 2px solid #28a745;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 24px;
+                    text-align: center;
+                }
+                
                 .${WIDGET_PREFIX}-alert {
                     padding: 12px;
                     border-radius: 8px;
@@ -463,6 +656,7 @@
             </style>
         `;
         
+        // HTML del widget (incluye todo el HTML anterior más la sección de descarga)
         container.innerHTML = styles + `
             <div class="${WIDGET_PREFIX}-widget">
                 <h1 class="${WIDGET_PREFIX}-title">📊 Mi Punto de Partida Financiero</h1>
@@ -477,7 +671,7 @@
                     
                     <div class="${WIDGET_PREFIX}-form-group">
                         <label class="${WIDGET_PREFIX}-label">¿Cuáles son tus ingresos mensuales netos?</label>
-                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-monthly-income" placeholder="2.500">
+                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-monthly-income" placeholder="2500">
                     </div>
                     
                     <div class="${WIDGET_PREFIX}-form-group">
@@ -509,186 +703,195 @@
                     <div class="${WIDGET_PREFIX}-form-group">
                         <label class="${WIDGET_PREFIX}-label">¿Son estables tus ingresos?</label>
                         <select class="${WIDGET_PREFIX}-select" id="${WIDGET_PREFIX}-income-stability">
-                            <option value="">Selecciona una opción</option>
-                            <option value="very-stable">Muy estables (mismo monto cada mes)</option>
-                            <option value="stable">Estables (pequeñas variaciones)</option>
-                            <option value="variable">Variables (cambios significativos)</option>
-                            <option value="very-variable">Muy variables (impredecibles)</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Paso 2: Gastos -->
-                <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-2">
-                    <h2 class="${WIDGET_PREFIX}-step-title">💸 Paso 2: Cómo Usas tu Dinero</h2>
-                    
-                    <div class="${WIDGET_PREFIX}-alert ${WIDGET_PREFIX}-alert-info">
-                        <strong>The Big Five:</strong> Vamos a clasificar tus gastos en las 5 categorías principales.
-                    </div>
-                    
-                    <!-- No Negociables con subcategorías -->
-                    <div class="${WIDGET_PREFIX}-form-group">
-                        <label class="${WIDGET_PREFIX}-label">🏠 No Negociables</label>
-                        <div class="${WIDGET_PREFIX}-subcategory">
-                            <div class="${WIDGET_PREFIX}-subcategory-title">Desglose de No Negociables:</div>
-                            <div class="${WIDGET_PREFIX}-grid">
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">🏠 Vivienda</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-housing" placeholder="800">
-                                </div>
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">🍽️ Alimentación</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-food" placeholder="300">
-                                </div>
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">🚗 Transporte</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-transport" placeholder="150">
-                                </div>
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">🏥 Salud/Seguros</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-health" placeholder="100">
-                                </div>
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">💡 Servicios</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-utilities" placeholder="120">
-                                </div>
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">💳 Pagos de Deuda</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-debt-payments-detail" placeholder="300">
-                                </div>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-total-display">
-                                Total No Negociables: <span id="${WIDGET_PREFIX}-non-negotiables-total">€0</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="${WIDGET_PREFIX}-grid">
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">💰 Ahorro</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-savings" placeholder="250">
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">📈 Inversión</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-investment" placeholder="200">
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">🎉 Viva la Vida</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-lifestyle" placeholder="400">
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">❤️ Granito de Arena</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-giving" placeholder="50">
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Paso 3: Activos -->
-                <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-3">
-                    <h2 class="${WIDGET_PREFIX}-step-title">🏛️ Paso 3: Tus Activos</h2>
-                    
-                    <div class="${WIDGET_PREFIX}-grid">
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">💧 Activos Líquidos <em>(sin fondo de emergencia)</em></label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-liquid-assets" placeholder="5.000">
-                            <small>Inversiones que puedes convertir en efectivo rápidamente</small>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">🏢 Activos No Líquidos</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-illiquid-assets" placeholder="50.000">
-                            <small>Inmuebles, vehículos, etc.</small>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">💵 Efectivo Disponible</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-cash" placeholder="1.000">
-                            <small>Dinero en cuentas corrientes/ahorros</small>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">🐷 Fondo de Emergencia</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-emergency-fund" placeholder="3.000">
-                            <small>Tu marranito de emergencia</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Paso 4: Deudas -->
-                <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-4">
-                    <h2 class="${WIDGET_PREFIX}-step-title">💳 Paso 4: Tus Deudas</h2>
-                    
-                    <div class="${WIDGET_PREFIX}-grid">
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">🛍️ Deuda de Consumo</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-consumer-debt" placeholder="5.000">
-                            <small>Tarjetas de crédito, préstamos personales</small>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">🏠 Deuda Hipotecaria</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-mortgage-debt" placeholder="150.000">
-                            <small>Préstamo de la casa</small>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group ${WIDGET_PREFIX}-full-width">
-                            <label class="${WIDGET_PREFIX}-label">📋 Otro Tipo de Deuda</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-other-debt" placeholder="2.000">
-                            <small>Préstamos estudiantiles, familiares, etc.</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Dashboard -->
-                <div class="${WIDGET_PREFIX}-dashboard" id="${WIDGET_PREFIX}-dashboard">
-                    <!-- Métricas principales -->
-                    <div class="${WIDGET_PREFIX}-dashboard-metrics">
-                        <div class="${WIDGET_PREFIX}-dashboard-panel">
-                            <h3 class="${WIDGET_PREFIX}-dashboard-title">📊 Distribución de Ingresos</h3>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">Total gastado:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-total-expenses">-</span>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">% de ingresos usado:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-income-distribution">-</span>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">Sobrante mensual:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-monthly-surplus">-</span>
-                            </div>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-dashboard-panel">
-                            <h3 class="${WIDGET_PREFIX}-dashboard-title">🛡️ Estabilidad Financiera</h3>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">Solvencia:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-solvency">-</span>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">% Endeudamiento:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-ratio">-</span>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">% Ingresos a Deuda:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-to-income">-</span>
-                            </div>
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-dashboard-panel">
-                            <h3 class="${WIDGET_PREFIX}-dashboard-title">🐷 Fondo de Emergencia</h3>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">Meses cubiertos:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-emergency-months">-</span>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-metric">
-                                <span class="${WIDGET_PREFIX}-metric-label">Recomendado:</span>
-                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-recommended-months">-</span>
-                            </div>
-                            <div class="${WIDGET_PREFIX}-metric">
+                           <option value="">Selecciona una opción</option>
+                           <option value="very-stable">Muy estables (mismo monto cada mes)</option>
+                           <option value="stable">Estables (pequeñas variaciones)</option>
+                           <option value="variable">Variables (cambios significativos)</option>
+                           <option value="very-variable">Muy variables (impredecibles)</option>
+                       </select>
+                   </div>
+               </div>
+               
+               <!-- Paso 2: Gastos -->
+               <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-2">
+                   <h2 class="${WIDGET_PREFIX}-step-title">💸 Paso 2: Cómo Usas tu Dinero</h2>
+                   
+                   <div class="${WIDGET_PREFIX}-alert ${WIDGET_PREFIX}-alert-info">
+                       <strong>The Big Five:</strong> Vamos a clasificar tus gastos en las 5 categorías principales.
+                   </div>
+                   
+                   <!-- No Negociables con subcategorías -->
+                   <div class="${WIDGET_PREFIX}-form-group">
+                       <label class="${WIDGET_PREFIX}-label">🏠 No Negociables</label>
+                       <div class="${WIDGET_PREFIX}-subcategory">
+                           <div class="${WIDGET_PREFIX}-subcategory-title">Desglose de No Negociables:</div>
+                           <div class="${WIDGET_PREFIX}-grid">
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">🏠 Vivienda</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-housing" placeholder="800">
+                               </div>
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">🍽️ Alimentación</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-food" placeholder="300">
+                               </div>
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">🚗 Transporte</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-transport" placeholder="150">
+                               </div>
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">🏥 Salud/Seguros</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-health" placeholder="100">
+                               </div>
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">💡 Servicios</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-utilities" placeholder="120">
+                               </div>
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">💳 Pagos de Deuda</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-debt-payments-detail" placeholder="300">
+                               </div>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-total-display">
+                               Total No Negociables: <span id="${WIDGET_PREFIX}-non-negotiables-total">€0</span>
+                           </div>
+                       </div>
+                   </div>
+                   
+                   <div class="${WIDGET_PREFIX}-grid">
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">💰 Ahorro</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-savings" placeholder="250">
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">📈 Inversión</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-investment" placeholder="200">
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">🎉 Viva la Vida</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-lifestyle" placeholder="400">
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">❤️ Granito de Arena</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-giving" placeholder="50">
+                       </div>
+                   </div>
+               </div>
+               
+               <!-- Paso 3: Activos -->
+               <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-3">
+                   <h2 class="${WIDGET_PREFIX}-step-title">🏛️ Paso 3: Tus Activos</h2>
+                   
+                   <div class="${WIDGET_PREFIX}-grid">
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">💧 Activos Líquidos <em>(sin fondo de emergencia)</em></label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-liquid-assets" placeholder="5000">
+                           <small>Inversiones que puedes convertir en efectivo rápidamente</small>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">🏢 Activos No Líquidos</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-illiquid-assets" placeholder="50000">
+                           <small>Inmuebles, vehículos, etc.</small>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">💵 Efectivo Disponible</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-cash" placeholder="1000">
+                           <small>Dinero en cuentas corrientes/ahorros</small>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">🐷 Fondo de Emergencia</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-emergency-fund" placeholder="3000">
+                           <small>Tu marranito de emergencia</small>
+                       </div>
+                   </div>
+               </div>
+               
+               <!-- Paso 4: Deudas -->
+               <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-4">
+                   <h2 class="${WIDGET_PREFIX}-step-title">💳 Paso 4: Tus Deudas</h2>
+                   
+                   <div class="${WIDGET_PREFIX}-grid">
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">🛍️ Deuda de Consumo</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-consumer-debt" placeholder="5000">
+                           <small>Tarjetas de crédito, préstamos personales</small>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group">
+                           <label class="${WIDGET_PREFIX}-label">🏠 Deuda Hipotecaria</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-mortgage-debt" placeholder="150000">
+                           <small>Préstamo de la casa</small>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-form-group ${WIDGET_PREFIX}-full-width">
+                           <label class="${WIDGET_PREFIX}-label">📋 Otro Tipo de Deuda</label>
+                           <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-other-debt" placeholder="2000">
+                           <small>Préstamos estudiantiles, familiares, etc.</small>
+                       </div>
+                   </div>
+               </div>
+               
+               <!-- Dashboard -->
+               <div class="${WIDGET_PREFIX}-dashboard" id="${WIDGET_PREFIX}-dashboard">
+                   <!-- Sección de descarga -->
+                   <div class="${WIDGET_PREFIX}-download-section">
+                       <h3 class="${WIDGET_PREFIX}-dashboard-title">📥 Exportar Análisis</h3>
+                       <p>Descarga tu análisis financiero completo en formato CSV para guardarlo o compartirlo.</p>
+                       <button class="${WIDGET_PREFIX}-button ${WIDGET_PREFIX}-button-download" onclick="downloadCSV()">
+                           📊 Descargar CSV
+                       </button>
+                   </div>
+                   
+                   <!-- Métricas principales -->
+                   <div class="${WIDGET_PREFIX}-dashboard-metrics">
+                       <div class="${WIDGET_PREFIX}-dashboard-panel">
+                           <h3 class="${WIDGET_PREFIX}-dashboard-title">📊 Distribución de Ingresos</h3>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">Total gastado:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-total-expenses">-</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">% de ingresos usado:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-income-distribution">-</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">Sobrante mensual:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-monthly-surplus">-</span>
+                           </div>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-dashboard-panel">
+                           <h3 class="${WIDGET_PREFIX}-dashboard-title">🛡️ Estabilidad Financiera</h3>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">Solvencia:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-solvency">-</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">% Endeudamiento:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-ratio">-</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">% Ingresos a Deuda:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-to-income">-</span>
+                           </div>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-dashboard-panel">
+                           <h3 class="${WIDGET_PREFIX}-dashboard-title">🐷 Fondo de Emergencia</h3>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">Meses cubiertos:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-emergency-months">-</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">Recomendado:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-recommended-months">-</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-metric">
                                <span class="${WIDGET_PREFIX}-metric-label">Estado:</span>
                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-emergency-status">-</span>
                            </div>
@@ -881,7 +1084,7 @@
                }
            });
            
-           // Al entrar al campo, quitar formato
+           // Al entrar al campo, quitar formato y mostrar número plano
            input.addEventListener('focus', function() {
                const value = parseFormattedNumber(this.value);
                if (value > 0) {
@@ -960,6 +1163,9 @@
            saveData();
        }
    };
+   
+   // Función para descargar CSV (expuesta globalmente)
+   window.downloadCSV = downloadCSV;
    
    // Funciones de navegación
    window.nextStep = function() {
@@ -1138,10 +1344,16 @@
        alert.className = `${WIDGET_PREFIX}-alert ${WIDGET_PREFIX}-alert-${type} ${WIDGET_PREFIX}-alert-temp`;
        alert.textContent = message;
        
-       // Insertar al inicio del paso actual
-       const currentStepEl = document.getElementById(`${WIDGET_PREFIX}-step-${currentStep}`);
-       if (currentStepEl) {
-           currentStepEl.insertBefore(alert, currentStepEl.firstChild.nextSibling);
+       // Insertar al inicio del paso actual o dashboard
+       let targetContainer;
+       if (currentStep <= totalSteps) {
+           targetContainer = document.getElementById(`${WIDGET_PREFIX}-step-${currentStep}`);
+       } else {
+           targetContainer = document.getElementById(`${WIDGET_PREFIX}-dashboard`);
+       }
+       
+       if (targetContainer) {
+           targetContainer.insertBefore(alert, targetContainer.firstChild.nextSibling);
            
            // Auto-remover después de 5 segundos
            setTimeout(() => {
