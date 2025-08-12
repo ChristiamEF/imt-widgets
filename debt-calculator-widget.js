@@ -1,6 +1,6 @@
 /**
  * =================================================================================
- * WIDGET CALCULADORA DE DEUDAS v1.0 (Estrategia Bola de Nieve)
+ * WIDGET CALCULADORA DE DEUDAS v1.2 (Estrategia Bola de Nieve)
  * Creado para ser seguro, embedible y responsive.
  * ---------------------------------------------------------------------------------
  * Este script crea una calculadora de deudas interactiva dentro de un div específico.
@@ -500,6 +500,7 @@
 
                 <div class="${PREFIX}navigation">
                     <button type="button" class="${PREFIX}btn ${PREFIX}btn-secondary" id="${PREFIX}back-analysis-btn">← Ver Análisis</button>
+                    <button type="button" class="${PREFIX}btn" id="${PREFIX}download-csv-btn">📊 Descargar Plan (CSV)</button>
                     <button type="button" class="${PREFIX}btn" id="${PREFIX}reset-btn">🔄 Reiniciar</button>
                 </div>
             `;
@@ -623,6 +624,11 @@
             const backBtn = document.getElementById(PREFIX + 'back-analysis-btn');
             if (backBtn) {
                 backBtn.addEventListener('click', () => this.goToStep(2));
+            }
+
+            const downloadBtn = document.getElementById(PREFIX + 'download-csv-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', () => this.downloadCSVReport());
             }
 
             const resetBtn = document.getElementById(PREFIX + 'reset-btn');
@@ -1202,6 +1208,227 @@
                 console.warn('No se pudo cargar Chart.js - los gráficos no estarán disponibles');
             };
             document.head.appendChild(script);
+        }
+
+        // ===============================================
+        // FUNCIONALIDAD DE DESCARGA CSV
+        // ===============================================
+
+        downloadCSVReport() {
+            if (!this.validateDataForDownload()) return;
+
+            try {
+                const csvContent = this.generateCSVContent();
+                this.downloadFile(csvContent, this.generateFileName(), 'text/csv');
+                
+                // Mostrar mensaje de éxito
+                this.showDownloadSuccess();
+            } catch (error) {
+                console.error('Error generando CSV:', error);
+                alert('Error al generar el archivo. Inténtalo de nuevo.');
+            }
+        }
+
+        validateDataForDownload() {
+            if (this.debts.length === 0) {
+                alert('No hay deudas registradas para exportar');
+                return false;
+            }
+
+            // Verificar que se haya calculado la estrategia
+            const strategyResults = document.getElementById(PREFIX + 'strategy-results');
+            if (!strategyResults || strategyResults.style.display === 'none') {
+                alert('Primero calcula la estrategia Bola de Nieve antes de descargar');
+                return false;
+            }
+
+            return true;
+        }
+
+        generateCSVContent() {
+            const now = new Date();
+            const extraMonthly = Security.validateNumber(document.getElementById(PREFIX + 'extra-monthly')?.value, 0) || 0;
+            
+            // Calcular datos para el reporte
+            const current = this.calculateCurrentSituation();
+            const strategy = this.calculateSnowballStrategy(extraMonthly);
+            const sortedDebts = [...this.debts].sort((a, b) => a.currentBalance - b.currentBalance);
+
+            let csv = '';
+
+            // 1. ENCABEZADO DEL REPORTE
+            csv += '=== PLAN DE LIBERTAD FINANCIERA ===\n';
+            csv += `Generado el: ${now.toLocaleDateString()} a las ${now.toLocaleTimeString()}\n`;
+            csv += `Total de deudas registradas: ${this.debts.length}\n`;
+            csv += '\n';
+
+            // 2. RESUMEN COMPARATIVO
+            csv += '=== RESUMEN COMPARATIVO ===\n';
+            csv += 'Concepto,Situación Actual,Con Bola de Nieve,Ahorro\n';
+            csv += `Tiempo para libertad,"${current.years} años","${strategy.years} años","${Math.round((current.years - strategy.years) * 10) / 10} años menos"\n`;
+            csv += `Total intereses a pagar,"€${Math.round(current.totalInterest).toLocaleString()}","€${Math.round(strategy.totalInterest).toLocaleString()}","€${Math.round(current.totalInterest - strategy.totalInterest).toLocaleString()} menos"\n`;
+            csv += `Pago extra mensual,€0,"€${extraMonthly.toLocaleString()}","€${extraMonthly.toLocaleString()} adicional"\n`;
+            csv += '\n';
+
+            // 3. DETALLE DE TODAS LAS DEUDAS
+            csv += '=== DETALLE DE TUS DEUDAS ===\n';
+            csv += 'Referencia,Acreedor,Saldo Actual,Tasa Anual (%),Pago Mensual,Plazo Restante (meses),Total a Pagar,Total Intereses,Años para Liquidar\n';
+            
+            this.debts.forEach(debt => {
+                const totalPayment = this.calculateTotalPayment(debt);
+                const totalInterest = this.calculateTotalInterest(debt);
+                const yearsToPayOff = Math.round((debt.remainingTerm / 12) * 10) / 10;
+
+                // Sanitizar datos para CSV (escapar comillas y comas)
+                const reference = this.sanitizeCSVField(debt.debtReference);
+                const creditor = this.sanitizeCSVField(debt.creditorName);
+
+                csv += `${reference},${creditor},€${debt.currentBalance.toLocaleString()},${debt.annualRate.toFixed(2)}%,€${debt.minimumPayment.toLocaleString()},${debt.remainingTerm},€${Math.round(totalPayment).toLocaleString()},€${Math.round(totalInterest).toLocaleString()},${yearsToPayOff}\n`;
+            });
+
+            csv += '\n';
+
+            // 4. ESTRATEGIA BOLA DE NIEVE - ORDEN DE ATAQUE
+            csv += '=== ESTRATEGIA BOLA DE NIEVE - ORDEN DE ATAQUE ===\n';
+            csv += 'Orden,Referencia,Saldo,Razón\n';
+            
+            sortedDebts.forEach((debt, index) => {
+                const reference = this.sanitizeCSVField(debt.debtReference);
+                const reason = index === 0 ? 'ATACAR PRIMERO (menor saldo)' : 
+                              index === 1 ? 'Segunda prioridad' :
+                              index === 2 ? 'Tercera prioridad' : 
+                              `${index + 1}º en la fila`;
+                
+                csv += `${index + 1},${reference},€${debt.currentBalance.toLocaleString()},${reason}\n`;
+            });
+
+            csv += '\n';
+
+            // 5. PLAN DE ACCIÓN MENSUAL
+            csv += '=== PLAN DE ACCIÓN MENSUAL ===\n';
+            csv += 'Instrucción,Descripción\n';
+            csv += `1. Pagar mínimo en TODAS las deudas,"Paga €${this.debts.reduce((sum, debt) => sum + debt.minimumPayment, 0).toLocaleString()} en total cada mes"\n`;
+            csv += `2. Dinero extra SOLO a la más pequeña,"Destina €${extraMonthly.toLocaleString()} adicionales a: ${this.sanitizeCSVField(sortedDebts[0]?.debtReference || 'N/A')}"\n`;
+            csv += '3. Al liquidar una deuda,"Su pago mínimo se suma al dinero extra para la siguiente"\n';
+            csv += '4. Efecto bola de nieve,"Cada vez tendrás más dinero para atacar las deudas restantes"\n';
+            csv += '5. Repetir hasta el final,"Continúa hasta liquidar todas las deudas"\n';
+            csv += '\n';
+
+            // 6. CRONOGRAMA ESTIMADO (SIMPLIFICADO)
+            csv += '=== CRONOGRAMA ESTIMADO ===\n';
+            csv += 'Período,Deuda a Atacar,Acción\n';
+            
+            let currentPeriod = 1;
+            let remainingTime = strategy.months;
+            
+            sortedDebts.forEach((debt, index) => {
+                const reference = this.sanitizeCSVField(debt.debtReference);
+                const estimatedMonths = Math.ceil(debt.remainingTerm / (sortedDebts.length - index));
+                const periodText = estimatedMonths <= 12 ? 
+                    `Meses ${currentPeriod}-${currentPeriod + estimatedMonths - 1}` :
+                    `Año ${Math.ceil(currentPeriod / 12)} - ${Math.ceil((currentPeriod + estimatedMonths) / 12)}`;
+                
+                csv += `${periodText},${reference},"Pago mínimo + todo el extra disponible"\n`;
+                currentPeriod += estimatedMonths;
+            });
+
+            csv += '\n';
+
+            // 7. CONSEJOS ADICIONALES
+            csv += '=== CONSEJOS PARA EL ÉXITO ===\n';
+            csv += 'Consejo,Descripción\n';
+            csv += 'Automatiza los pagos,"Configura transferencias automáticas para no olvidar ningún pago"\n';
+            csv += 'Evita nuevas deudas,"Durante este proceso no agregues más deudas de consumo"\n';
+            csv += 'Celebra cada victoria,"Cuando liquides una deuda ¡celébralo! Es un gran logro"\n';
+            csv += 'Revisa mensualmente,"Actualiza este plan si cambian tus ingresos o gastos"\n';
+            csv += 'Busca ingresos extra,"Cualquier dinero adicional acelera el proceso"\n';
+            csv += 'Mantén la motivación,"Visualiza tu vida sin deudas para mantenerte enfocado"\n';
+            csv += '\n';
+
+            // 8. CALCULADORA DE ESCENARIOS
+            csv += '=== CALCULADORA DE ESCENARIOS (Para que experimentes) ===\n';
+            csv += 'Pago Extra Mensual,Tiempo Estimado,Ahorro en Intereses\n';
+            
+            // Generar varios escenarios de pago extra
+            for (let extra = 0; extra <= extraMonthly * 3; extra += 50) {
+                const scenarioStrategy = this.calculateSnowballStrategy(extra);
+                const scenarioSavings = current.totalInterest - scenarioStrategy.totalInterest;
+                csv += `€${extra.toLocaleString()},"${scenarioStrategy.years} años","€${Math.round(scenarioSavings).toLocaleString()}"\n`;
+            }
+
+            csv += '\n';
+            csv += '=== NOTA FINAL ===\n';
+            csv += 'Este archivo CSV te permite hacer cálculos adicionales en Excel o Google Sheets.\n';
+            csv += 'Puedes modificar los números y crear tus propios escenarios.\n';
+            csv += '¡Cada pequeño paso te acerca más a tu libertad financiera!\n';
+
+            return csv;
+        }
+
+        sanitizeCSVField(text) {
+            if (typeof text !== 'string') return '';
+            
+            // Escapar comillas dobles y envolver en comillas si contiene comas
+            let sanitized = text.replace(/"/g, '""');
+            
+            if (sanitized.includes(',') || sanitized.includes('"') || sanitized.includes('\n')) {
+                sanitized = `"${sanitized}"`;
+            }
+            
+            return sanitized;
+        }
+
+        generateFileName() {
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+            const timeStr = now.toTimeString().slice(0, 5).replace(':', ''); // HHMM
+            
+            return `plan-deudas-${dateStr}-${timeStr}.csv`;
+        }
+
+        downloadFile(content, filename, mimeType) {
+            try {
+                // Verificar tamaño del archivo
+                const sizeInMB = new Blob([content]).size / (1024 * 1024);
+                if (sizeInMB > 5) {
+                    alert('El archivo es demasiado grande (más de 5MB). Contacta al soporte.');
+                    return;
+                }
+
+                // Crear blob y descarga
+                const blob = new Blob([content], { type: mimeType + ';charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Limpiar memoria
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                
+            } catch (error) {
+                console.error('Error en descarga:', error);
+                alert('Error al descargar el archivo. Tu navegador puede no soportar esta función.');
+            }
+        }
+
+        showDownloadSuccess() {
+            const downloadBtn = document.getElementById(PREFIX + 'download-csv-btn');
+            if (downloadBtn) {
+                const originalText = downloadBtn.textContent;
+                downloadBtn.textContent = '✅ Descargado';
+                downloadBtn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    downloadBtn.textContent = originalText;
+                    downloadBtn.style.background = '';
+                }, 3000);
+            }
         }
     }
 
