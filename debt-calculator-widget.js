@@ -1,69 +1,32 @@
 /**
-* =================================================================================
-* WIDGET CALCULADORA DE DEUDAS v1.0 (Estrategia Bola de Nieve)
-* Creado para ser seguro, embedible y responsive.
-* ---------------------------------------------------------------------------------
-* Este script crea una calculadora de deudas interactiva dentro de un div específico.
-* Permite al usuario registrar múltiples deudas, analizar su situación financiera
-* y simular la estrategia "Bola de Nieve" para acelerar el pago de deudas.
-* 
-* CARACTERÍSTICAS PRINCIPALES:
-* • Wizard de 3 pasos: Registro → Análisis → Estrategias
-* • Validación de entradas con sanitización XSS
-* • Cálculos financieros precisos (amortización, intereses)
-* • Visualización interactiva con gráficos comparativos
-* • Almacenamiento local seguro (localStorage)
-* • Diseño responsive y accesible
-* • Completamente autocontenido (sin interferencia con página host)
-* 
-* ALGORITMOS FINANCIEROS:
-* • Cálculo de pagos mensuales con fórmula de amortización
-* • Simulación de estrategia "Snowball" (menor a mayor saldo)
-* • Comparación temporal y de costos entre escenarios
-* • Proyección de ahorro en tiempo e intereses
-* 
-* SEGURIDAD:
-* • 100% client-side (sin envío de datos a servidores)
-* • Sanitización de entradas de usuario
-* • Validación estricta de números y rangos
-* • Namespace único para evitar conflictos
-* • Prefijos CSS para aislamiento de estilos
-* 
-* DEPENDENCIAS EXTERNAS:
-* • Chart.js v3.9.1+ (https://www.chartjs.org/)
-*   - Se carga dinámicamente desde CDN
-*   - Opcional: el widget funciona sin gráficos si falla la carga
-*   - URL: https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js
-* 
-* COMPATIBILIDAD:
-* • Navegadores modernos (ES6+)
-* • Dispositivos móviles y desktop
-* • No requiere jQuery ni otras librerías
-* 
-* USO BÁSICO:
-* <!-- HTML -->
-* <div id="imt-debt-calculator-widget"></div>
-* <script src="debt-calculator-widget.js"></script>
-* 
-* // JavaScript (inicialización manual)
-* const widget = window['imt-debt-calculator'].init('mi-contenedor-personalizado');
-* 
-* ESTRUCTURA DE DATOS:
-* Cada deuda contiene: {
-*   id: timestamp único,
-*   creditorName: string sanitizado,
-*   debtReference: string sanitizado,
-*   currentBalance: number validado,
-*   annualRate: number (0-100),
-*   monthlyRate: number calculado,
-*   remainingTerm: integer (1-600 meses),
-*   minimumPayment: number validado
-* }
-* 
-* AUTOR: It's Money Time Team
-* LICENCIA: MIT
-* =================================================================================
-*/
+ * =================================================================================
+ * WIDGET CALCULADORA DE DEUDAS v1.0 (Estrategia Bola de Nieve)
+ * Creado para ser seguro, embedible y responsive.
+ * ---------------------------------------------------------------------------------
+ * Este script crea una calculadora de deudas interactiva dentro de un div específico.
+ * Permite al usuario registrar múltiples deudas, analizar su situación financiera
+ * y simular la estrategia "Bola de Nieve" para acelerar el pago de deudas.
+ * 
+ * CARACTERÍSTICAS PRINCIPALES:
+ * • Wizard de 3 pasos: Registro → Análisis → Estrategias
+ * • Validación de entradas con sanitización XSS
+ * • Cálculos financieros precisos (amortización, intereses)
+ * • Visualización interactiva con gráficos comparativos
+ * • Almacenamiento local seguro (localStorage)
+ * • Diseño responsive y accesible
+ * • Completamente autocontenido (sin interferencia con página host)
+ * 
+ * DEPENDENCIAS EXTERNAS:
+ * • Chart.js v3.9.1+ (https://www.chartjs.org/)
+ *   - Se carga dinámicamente desde CDN
+ *   - Opcional: el widget funciona sin gráficos si falla la carga
+ * 
+ * USO BÁSICO:
+ * <!-- HTML -->
+ * <div id="imt-debt-calculator-widget"></div>
+ * <script src="debt-calculator-widget.js"></script>
+ * =================================================================================
+ */
 
 (function() {
     'use strict';
@@ -212,6 +175,7 @@
             border-radius: 8px;
             font-size: 1rem;
             transition: border-color 0.3s;
+            box-sizing: border-box;
         }
 
         .${PREFIX}form-group input:focus,
@@ -224,6 +188,19 @@
             font-size: 0.85rem;
             color: #666;
             margin-top: 3px;
+        }
+
+        .${PREFIX}calculated-payment {
+            background: #f8f8f8;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .${PREFIX}calculated-payment .amount {
+            font-weight: bold;
+            color: #000;
         }
 
         .${PREFIX}btn {
@@ -326,12 +303,6 @@
             margin-top: 3px;
         }
 
-        .${PREFIX}loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
         .${PREFIX}navigation {
             display: flex;
             justify-content: space-between;
@@ -425,12 +396,16 @@
                     <div class="${PREFIX}form-group">
                         <label for="${PREFIX}payment">Pago mensual (€) *</label>
                         <input type="number" id="${PREFIX}payment" required min="0" step="0.01" placeholder="450">
-                        <div class="${PREFIX}help-text">¿Cuánto pagas cada mes?</div>
+                        <div class="${PREFIX}help-text">¿Cuánto pagas cada mes? Déjalo vacío para calcular automáticamente</div>
+                        <div id="${PREFIX}calculated-payment" class="${PREFIX}calculated-payment" style="display: none;">
+                            <div>💡 <strong>Pago calculado:</strong> <span class="${PREFIX}amount" id="${PREFIX}calculated-amount">€0</span>/mes</div>
+                            <div class="${PREFIX}help-text">Este es el pago mensual teórico. Puedes modificarlo arriba.</div>
+                        </div>
                     </div>
 
                     <div class="${PREFIX}navigation">
                         <div></div>
-                        <button class="${PREFIX}btn" onclick="window.${WIDGET_ID}.addDebt()">➕ Agregar Deuda</button>
+                        <button type="button" class="${PREFIX}btn" id="${PREFIX}add-debt-btn">➕ Agregar Deuda</button>
                     </div>
                 </div>
 
@@ -438,8 +413,8 @@
                     <h3>📋 Deudas Agregadas</h3>
                     <div id="${PREFIX}debt-list"></div>
                     <div style="margin-top: 15px; text-align: center;">
-                        <button class="${PREFIX}btn ${PREFIX}btn-secondary" onclick="window.${WIDGET_ID}.addAnother()">📝 Agregar Otra</button>
-                        <button class="${PREFIX}btn" onclick="window.${WIDGET_ID}.goToStep(2)">➡️ Analizar</button>
+                        <button type="button" class="${PREFIX}btn ${PREFIX}btn-secondary" id="${PREFIX}add-another-btn">📝 Agregar Otra</button>
+                        <button type="button" class="${PREFIX}btn" id="${PREFIX}analyze-btn">➡️ Analizar</button>
                     </div>
                 </div>
             `;
@@ -474,8 +449,8 @@
                 </div>
 
                 <div class="${PREFIX}navigation">
-                    <button class="${PREFIX}btn ${PREFIX}btn-secondary" onclick="window.${WIDGET_ID}.goToStep(1)">← Editar Deudas</button>
-                    <button class="${PREFIX}btn" onclick="window.${WIDGET_ID}.goToStep(3)">Ver Estrategias →</button>
+                    <button type="button" class="${PREFIX}btn ${PREFIX}btn-secondary" id="${PREFIX}edit-debts-btn">← Editar Deudas</button>
+                    <button type="button" class="${PREFIX}btn" id="${PREFIX}strategies-btn">Ver Estrategias →</button>
                 </div>
             `;
         },
@@ -492,7 +467,7 @@
                         <div class="${PREFIX}help-text">¿Cuánto extra puedes pagar cada mes?</div>
                     </div>
 
-                    <button class="${PREFIX}btn" onclick="window.${WIDGET_ID}.calculateStrategy()">🔄 Calcular Estrategia</button>
+                    <button type="button" class="${PREFIX}btn" id="${PREFIX}calculate-strategy-btn">🔄 Calcular Estrategia</button>
                 </div>
 
                 <div id="${PREFIX}strategy-results" style="display: none;">
@@ -524,8 +499,8 @@
                 </div>
 
                 <div class="${PREFIX}navigation">
-                    <button class="${PREFIX}btn ${PREFIX}btn-secondary" onclick="window.${WIDGET_ID}.goToStep(2)">← Ver Análisis</button>
-                    <button class="${PREFIX}btn" onclick="window.${WIDGET_ID}.resetWidget()">🔄 Reiniciar</button>
+                    <button type="button" class="${PREFIX}btn ${PREFIX}btn-secondary" id="${PREFIX}back-analysis-btn">← Ver Análisis</button>
+                    <button type="button" class="${PREFIX}btn" id="${PREFIX}reset-btn">🔄 Reiniciar</button>
                 </div>
             `;
         }
@@ -584,26 +559,123 @@
             switch(step) {
                 case 1:
                     content.innerHTML = Templates.step1();
+                    this.setupStep1Events();
                     this.updateDebtSummary();
                     break;
                 case 2:
                     content.innerHTML = Templates.step2();
+                    this.setupStep2Events();
                     this.calculateAnalysis();
                     break;
                 case 3:
                     content.innerHTML = Templates.step3();
+                    this.setupStep3Events();
                     break;
+            }
+        }
+
+        setupStep1Events() {
+            // Botón agregar deuda
+            const addDebtBtn = document.getElementById(PREFIX + 'add-debt-btn');
+            if (addDebtBtn) {
+                addDebtBtn.addEventListener('click', () => this.addDebt());
+            }
+
+            // Botón agregar otra
+            const addAnotherBtn = document.getElementById(PREFIX + 'add-another-btn');
+            if (addAnotherBtn) {
+                addAnotherBtn.addEventListener('click', () => this.addAnother());
+            }
+
+            // Botón analizar
+            const analyzeBtn = document.getElementById(PREFIX + 'analyze-btn');
+            if (analyzeBtn) {
+                analyzeBtn.addEventListener('click', () => this.goToStep(2));
+            }
+
+            // Eventos para cálculo automático
+            ['balance', 'rate', 'term'].forEach(fieldName => {
+                const element = document.getElementById(PREFIX + fieldName);
+                if (element) {
+                    element.addEventListener('input', () => this.calculatePayment());
+                }
+            });
+        }
+
+        setupStep2Events() {
+            const editDebtsBtn = document.getElementById(PREFIX + 'edit-debts-btn');
+            if (editDebtsBtn) {
+                editDebtsBtn.addEventListener('click', () => this.goToStep(1));
+            }
+
+            const strategiesBtn = document.getElementById(PREFIX + 'strategies-btn');
+            if (strategiesBtn) {
+                strategiesBtn.addEventListener('click', () => this.goToStep(3));
+            }
+        }
+
+        setupStep3Events() {
+            const calculateBtn = document.getElementById(PREFIX + 'calculate-strategy-btn');
+            if (calculateBtn) {
+                calculateBtn.addEventListener('click', () => this.calculateStrategy());
+            }
+
+            const backBtn = document.getElementById(PREFIX + 'back-analysis-btn');
+            if (backBtn) {
+                backBtn.addEventListener('click', () => this.goToStep(2));
+            }
+
+            const resetBtn = document.getElementById(PREFIX + 'reset-btn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => this.resetWidget());
+            }
+        }
+
+        calculatePayment() {
+            const balance = Security.validateNumber(document.getElementById(PREFIX + 'balance')?.value);
+            const rate = Security.validateNumber(document.getElementById(PREFIX + 'rate')?.value);
+            const term = Security.validateInteger(document.getElementById(PREFIX + 'term')?.value);
+
+            if (balance && rate && term) {
+                // Convertir a tasa mensual
+                const monthlyRate = rate / 12 / 100;
+                
+                // Fórmula de pago mensual
+                const payment = balance * (monthlyRate * Math.pow(1 + monthlyRate, term)) / (Math.pow(1 + monthlyRate, term) - 1);
+                
+                if (payment && !isNaN(payment)) {
+                    const calculatedAmountEl = document.getElementById(PREFIX + 'calculated-amount');
+                    const calculatedPaymentEl = document.getElementById(PREFIX + 'calculated-payment');
+                    const paymentInput = document.getElementById(PREFIX + 'payment');
+                    
+                    if (calculatedAmountEl) {
+                        calculatedAmountEl.textContent = `€${payment.toFixed(2)}`;
+                    }
+                    if (calculatedPaymentEl) {
+                        calculatedPaymentEl.style.display = 'block';
+                    }
+                    
+                    // Autocompletar si está vacío
+                    if (paymentInput && !paymentInput.value) {
+                        paymentInput.value = payment.toFixed(2);
+                    }
+                } else {
+                    const calculatedPaymentEl = document.getElementById(PREFIX + 'calculated-payment');
+                    if (calculatedPaymentEl) {
+                        calculatedPaymentEl.style.display = 'none';
+                    }
+                }
             }
         }
 
         // Validación segura de datos
         validateDebtInput() {
-            const creditor = Security.sanitizeText(document.getElementById(PREFIX + 'creditor').value);
-            const reference = Security.sanitizeText(document.getElementById(PREFIX + 'reference').value);
-            const balance = Security.validateNumber(document.getElementById(PREFIX + 'balance').value, 0.01);
-            const rate = Security.validateNumber(document.getElementById(PREFIX + 'rate').value, 0, 100);
-            const term = Security.validateInteger(document.getElementById(PREFIX + 'term').value, 1, 600);
-            const payment = Security.validateNumber(document.getElementById(PREFIX + 'payment').value, 0.01);
+            const creditor = Security.sanitizeText(document.getElementById(PREFIX + 'creditor')?.value || '');
+            const reference = Security.sanitizeText(document.getElementById(PREFIX + 'reference')?.value || '');
+            const balance = Security.validateNumber(document.getElementById(PREFIX + 'balance')?.value, 0.01);
+            const rate = Security.validateNumber(document.getElementById(PREFIX + 'rate')?.value, 0, 100);
+            const term = Security.validateInteger(document.getElementById(PREFIX + 'term')?.value, 1, 600);
+            const payment = Security.validateNumber(document.getElementById(PREFIX + 'payment')?.value, 0.01);
 
             // Limpiar errores previos
             document.querySelectorAll(`.${PREFIX}error`).forEach(el => el.remove());
@@ -644,11 +716,13 @@
             // Mostrar errores
             errors.forEach(error => {
                 const field = document.getElementById(error.field);
-                const errorEl = document.createElement('div');
-                errorEl.className = PREFIX + 'error';
-                errorEl.textContent = error.message;
-                field.parentNode.appendChild(errorEl);
-                field.style.borderColor = '#d63384';
+                if (field) {
+                    const errorEl = document.createElement('div');
+                    errorEl.className = PREFIX + 'error';
+                    errorEl.textContent = error.message;
+                    field.parentNode.appendChild(errorEl);
+                    field.style.borderColor = '#d63384';
+                }
             });
 
             if (isValid) {
@@ -689,6 +763,12 @@
             // Limpiar errores
             document.querySelectorAll(`.${PREFIX}error`).forEach(el => el.remove());
             document.querySelectorAll('input').forEach(el => el.style.borderColor = '');
+            
+            // Ocultar pago calculado
+            const calculatedPaymentEl = document.getElementById(PREFIX + 'calculated-payment');
+            if (calculatedPaymentEl) {
+                calculatedPaymentEl.style.display = 'none';
+            }
         }
 
         updateDebtSummary() {
@@ -706,7 +786,7 @@
             list.innerHTML = '';
 
             let total = 0;
-            this.debts.forEach((debt, index) => {
+            this.debts.forEach((debt) => {
                 total += debt.currentBalance;
                 
                 const item = document.createElement('div');
@@ -718,7 +798,7 @@
                     </div>
                     <div style="text-align: right;">
                         <strong>€${debt.currentBalance.toLocaleString()}</strong><br>
-                        <button onclick="window.${WIDGET_ID}.removeDebt(${debt.id})" style="background: #666; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕</button>
+                        <button type="button" onclick="window.DebtCalculatorInstance.removeDebt(${debt.id})" style="background: #666; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕</button>
                     </div>
                 `;
                 list.appendChild(item);
@@ -792,7 +872,7 @@
         }
 
         calculateStrategy() {
-            const extraMonthly = Security.validateNumber(document.getElementById(PREFIX + 'extra-monthly').value, 0) || 0;
+            const extraMonthly = Security.validateNumber(document.getElementById(PREFIX + 'extra-monthly')?.value, 0) || 0;
             
             // Calcular situación actual
             const current = this.calculateCurrentSituation();
@@ -801,7 +881,10 @@
             const strategy = this.calculateSnowballStrategy(extraMonthly);
 
             // Mostrar resultados
-            document.getElementById(PREFIX + 'strategy-results').style.display = 'block';
+            const resultsEl = document.getElementById(PREFIX + 'strategy-results');
+            if (resultsEl) {
+                resultsEl.style.display = 'block';
+            }
 
             this.updateElement(PREFIX + 'current-time', `${current.years} años`);
             this.updateElement(PREFIX + 'current-interest', `€${Math.round(current.totalInterest).toLocaleString()} intereses`);
@@ -1132,35 +1215,18 @@
             
             const widget = new DebtCalculatorWidget(containerId);
             
-            // Exponer métodos públicos
-            return {
-                addDebt: () => widget.addDebt(),
-                removeDebt: (id) => widget.removeDebt(id),
-                addAnother: () => widget.addAnother(),
-                goToStep: (step) => widget.goToStep(step),
-                calculateStrategy: () => widget.calculateStrategy(),
-                resetWidget: () => widget.resetWidget()
-            };
-        },
-        
-        // Métodos accesibles globalmente para eventos onclick
-        addDebt: function() { /* Se asigna dinámicamente */ },
-        removeDebt: function(id) { /* Se asigna dinámicamente */ },
-        addAnother: function() { /* Se asigna dinámicamente */ },
-        goToStep: function(step) { /* Se asigna dinámicamente */ },
-        calculateStrategy: function() { /* Se asigna dinámicamente */ },
-        resetWidget: function() { /* Se asigna dinámicamente */ }
+            // Exponer instancia globalmente para eventos onclick
+            window.DebtCalculatorInstance = widget;
+            
+            return widget;
+        }
     };
 
     // Auto-inicialización si existe el contenedor por defecto
     document.addEventListener('DOMContentLoaded', function() {
         const defaultContainer = document.getElementById('imt-debt-calculator-widget');
         if (defaultContainer) {
-            const widget = window[WIDGET_ID].init('imt-debt-calculator-widget');
-            if (widget) {
-                // Asignar métodos a la interfaz global
-                Object.assign(window[WIDGET_ID], widget);
-            }
+            window[WIDGET_ID].init('imt-debt-calculator-widget');
         }
     });
 
