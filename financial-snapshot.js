@@ -146,18 +146,27 @@
             deuda_hipotecaria: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-mortgage-debt`).value),
             otra_deuda: parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-other-debt`).value),
             total_deudas: getTotalDebt(),
-            
-            // Métricas calculadas
-            total_gastos: getTotalExpenses(),
-            balance_mensual: data.ingresos_mensuales - getTotalExpenses(),
-            porcentaje_gastos: data.ingresos_mensuales > 0 ? Math.round((getTotalExpenses() / data.ingresos_mensuales) * 100) : 0,
-            solvencia: getTotalDebt() > 0 ? (getTotalAssets() / getTotalDebt()).toFixed(2) : '∞',
-            porcentaje_endeudamiento: getTotalAssets() > 0 ? Math.round((getTotalDebt() / getTotalAssets()) * 100) : 0,
-            porcentaje_deuda_ingresos: data.ingresos_mensuales > 0 ? Math.round((parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value) / data.ingresos_mensuales) * 100) : 0,
-            meses_emergencia: (getNonNegotiablesTotal() - parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value)) > 0 ? 
-                (parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-emergency-fund`).value) / (getNonNegotiablesTotal() - parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value))).toFixed(1) : 0,
-            meses_recomendados: getRecommendedEmergencyMonths()
-        };
+   
+            // Calcular métricas usando variables separadas
+            const ingresosMensuales = data.ingresos_mensuales;
+            const totalGastos = getTotalExpenses();
+            const totalDeudas = data.total_deudas;
+            const totalActivos = data.total_activos;
+            const pagosDeuda = data.pagos_deuda;
+
+            // Agregar métricas calculadas al objeto data
+            Object.assign(data, {
+                // Métricas calculadas
+                total_gastos: totalGastos,
+                balance_mensual: ingresosMensuales - totalGastos,
+                porcentaje_gastos: ingresosMensuales > 0 ? Math.round((totalGastos / ingresosMensuales) * 100) : 0,
+                solvencia: totalDeudas > 0 ? (totalActivos / totalDeudas).toFixed(2) : '∞',
+                porcentaje_endeudamiento: totalActivos > 0 ? Math.round((totalDeudas / totalActivos) * 100) : 0,
+                porcentaje_deuda_ingresos: ingresosMensuales > 0 ? Math.round((pagosDeuda / ingresosMensuales) * 100) : 0,
+                meses_emergencia: (getNonNegotiablesTotal() - pagosDeuda) > 0 ? 
+                    (data.fondo_emergencia / (getNonNegotiablesTotal() - pagosDeuda)).toFixed(1) : 0,
+                meses_recomendados: getRecommendedEmergencyMonths()
+            });
         
         return data;
     }
