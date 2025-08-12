@@ -42,6 +42,37 @@
         }
     }
     
+    // Función mejorada para parsear números con formato europeo
+    function parseFormattedNumber(value) {
+        if (typeof value !== 'string') return parseFloat(value) || 0;
+        
+        // Eliminar espacios y caracteres no numéricos excepto comas y puntos
+        let cleaned = value.replace(/[^\d.,\-]/g, '');
+        
+        // Si hay tanto coma como punto, determinar cuál es el separador decimal
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+            // Si el punto está después de la coma, la coma es separador de miles
+            if (cleaned.lastIndexOf('.') > cleaned.lastIndexOf(',')) {
+                cleaned = cleaned.replace(/,/g, '');
+            } else {
+                // Si la coma está después del punto, el punto es separador de miles
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            }
+        } else if (cleaned.includes(',')) {
+            // Solo coma: puede ser separador de miles o decimal
+            const parts = cleaned.split(',');
+            if (parts.length === 2 && parts[1].length <= 2) {
+                // Probablemente separador decimal
+                cleaned = cleaned.replace(',', '.');
+            } else {
+                // Probablemente separador de miles
+                cleaned = cleaned.replace(/,/g, '');
+            }
+        }
+        
+        return parseFloat(cleaned) || 0;
+    }
+    
     // Crear el contenedor del widget
     function createWidget() {
         const container = document.getElementById(`${WIDGET_PREFIX}-container`);
@@ -52,7 +83,7 @@
             <style>
                 .${WIDGET_PREFIX}-widget {
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    max-width: 800px;
+                    max-width: 1000px;
                     margin: 20px auto;
                     background: white;
                     border: 2px solid #000;
@@ -133,19 +164,48 @@
                 .${WIDGET_PREFIX}-checkbox-group {
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 12px;
-                    margin-top: 8px;
+                    justify-content: center;
+                    gap: 20px;
+                    margin-top: 16px;
+                    padding: 20px;
+                    background: #f8f8f8;
+                    border-radius: 12px;
+                    border: 1px solid #ddd;
                 }
                 
                 .${WIDGET_PREFIX}-checkbox-item {
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
                     gap: 8px;
+                    padding: 16px;
+                    background: white;
+                    border: 2px solid #000;
+                    border-radius: 8px;
+                    min-width: 120px;
+                    transition: all 0.2s;
+                    cursor: pointer;
+                }
+                
+                .${WIDGET_PREFIX}-checkbox-item:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 4px 4px 0 #000;
+                }
+                
+                .${WIDGET_PREFIX}-checkbox-item.selected {
+                    background: #f0f0f0;
+                    box-shadow: 4px 4px 0 #000;
                 }
                 
                 .${WIDGET_PREFIX}-checkbox {
                     width: 18px;
                     height: 18px;
+                }
+                
+                .${WIDGET_PREFIX}-checkbox-label {
+                    font-weight: 500;
+                    text-align: center;
+                    font-size: 14px;
                 }
                 
                 .${WIDGET_PREFIX}-button {
@@ -206,13 +266,25 @@
                 
                 .${WIDGET_PREFIX}-dashboard {
                     display: none;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 24px;
                     margin-top: 24px;
                 }
                 
                 .${WIDGET_PREFIX}-dashboard.active {
+                    display: block;
+                }
+                
+                .${WIDGET_PREFIX}-dashboard-metrics {
                     display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 24px;
+                    margin-bottom: 32px;
+                }
+                
+                .${WIDGET_PREFIX}-dashboard-edit {
+                    background: #f8f8f8;
+                    border: 2px solid #000;
+                    border-radius: 12px;
+                    padding: 24px;
                 }
                 
                 .${WIDGET_PREFIX}-dashboard-panel {
@@ -233,7 +305,7 @@
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 8px 0;
+                    padding: 12px 0;
                     border-bottom: 1px solid #ddd;
                 }
                 
@@ -243,11 +315,13 @@
                 
                 .${WIDGET_PREFIX}-metric-label {
                     font-weight: 500;
+                    font-size: 15px;
                 }
                 
                 .${WIDGET_PREFIX}-metric-value {
                     font-weight: bold;
                     color: #000;
+                    font-size: 16px;
                 }
                 
                 .${WIDGET_PREFIX}-editable-section {
@@ -265,10 +339,18 @@
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    padding: 8px;
+                    background: #f0f0f0;
+                    border-radius: 4px;
+                }
+                
+                .${WIDGET_PREFIX}-editable-title:hover {
+                    background: #e8e8e8;
                 }
                 
                 .${WIDGET_PREFIX}-collapsible-content {
                     display: none;
+                    margin-top: 12px;
                 }
                 
                 .${WIDGET_PREFIX}-collapsible-content.expanded {
@@ -281,8 +363,42 @@
                     gap: 16px;
                 }
                 
+                .${WIDGET_PREFIX}-grid-three {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 16px;
+                }
+                
                 .${WIDGET_PREFIX}-full-width {
                     grid-column: 1 / -1;
+                }
+                
+                .${WIDGET_PREFIX}-subcategory {
+                    background: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 16px;
+                    margin-top: 12px;
+                }
+                
+                .${WIDGET_PREFIX}-subcategory-title {
+                    font-weight: bold;
+                    font-size: 16px;
+                    margin-bottom: 12px;
+                    color: #333;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 8px;
+                }
+                
+                .${WIDGET_PREFIX}-total-display {
+                    background: #f0f0f0;
+                    border: 2px solid #000;
+                    border-radius: 8px;
+                    padding: 12px;
+                    margin-top: 16px;
+                    font-weight: bold;
+                    font-size: 18px;
+                    text-align: center;
                 }
                 
                 .${WIDGET_PREFIX}-alert {
@@ -310,23 +426,38 @@
                     color: #721c24;
                 }
                 
+                .${WIDGET_PREFIX}-alert-info {
+                    background: #d1ecf1;
+                    border: 2px solid #17a2b8;
+                    color: #0c5460;
+                }
+                
                 @media (max-width: 768px) {
                     .${WIDGET_PREFIX}-widget {
                         margin: 10px;
                         padding: 20px;
                     }
                     
-                    .${WIDGET_PREFIX}-dashboard {
+                    .${WIDGET_PREFIX}-dashboard-metrics {
                         grid-template-columns: 1fr;
                     }
                     
-                    .${WIDGET_PREFIX}-grid {
+                    .${WIDGET_PREFIX}-grid, .${WIDGET_PREFIX}-grid-three {
                         grid-template-columns: 1fr;
                     }
                     
                     .${WIDGET_PREFIX}-navigation {
                         flex-direction: column;
                         gap: 12px;
+                    }
+                    
+                    .${WIDGET_PREFIX}-checkbox-group {
+                        gap: 12px;
+                    }
+                    
+                    .${WIDGET_PREFIX}-checkbox-item {
+                        min-width: 100px;
+                        padding: 12px;
                     }
                 }
             </style>
@@ -346,31 +477,31 @@
                     
                     <div class="${WIDGET_PREFIX}-form-group">
                         <label class="${WIDGET_PREFIX}-label">¿Cuáles son tus ingresos mensuales netos?</label>
-                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-monthly-income" placeholder="2,500">
+                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-monthly-income" placeholder="2.500">
                     </div>
                     
                     <div class="${WIDGET_PREFIX}-form-group">
                         <label class="${WIDGET_PREFIX}-label">¿De dónde provienen principalmente?</label>
                         <div class="${WIDGET_PREFIX}-checkbox-group">
-                            <div class="${WIDGET_PREFIX}-checkbox-item">
+                            <div class="${WIDGET_PREFIX}-checkbox-item" onclick="toggleCheckbox('${WIDGET_PREFIX}-source-salary')">
                                 <input type="checkbox" class="${WIDGET_PREFIX}-checkbox" id="${WIDGET_PREFIX}-source-salary" value="salary">
-                                <label for="${WIDGET_PREFIX}-source-salary">Salario</label>
+                                <label class="${WIDGET_PREFIX}-checkbox-label" for="${WIDGET_PREFIX}-source-salary">💼 Salario</label>
                             </div>
-                            <div class="${WIDGET_PREFIX}-checkbox-item">
+                            <div class="${WIDGET_PREFIX}-checkbox-item" onclick="toggleCheckbox('${WIDGET_PREFIX}-source-freelance')">
                                 <input type="checkbox" class="${WIDGET_PREFIX}-checkbox" id="${WIDGET_PREFIX}-source-freelance" value="freelance">
-                                <label for="${WIDGET_PREFIX}-source-freelance">Freelance</label>
+                                <label class="${WIDGET_PREFIX}-checkbox-label" for="${WIDGET_PREFIX}-source-freelance">💻 Freelance</label>
                             </div>
-                            <div class="${WIDGET_PREFIX}-checkbox-item">
+                            <div class="${WIDGET_PREFIX}-checkbox-item" onclick="toggleCheckbox('${WIDGET_PREFIX}-source-business')">
                                 <input type="checkbox" class="${WIDGET_PREFIX}-checkbox" id="${WIDGET_PREFIX}-source-business" value="business">
-                                <label for="${WIDGET_PREFIX}-source-business">Negocio</label>
+                                <label class="${WIDGET_PREFIX}-checkbox-label" for="${WIDGET_PREFIX}-source-business">🏪 Negocio</label>
                             </div>
-                            <div class="${WIDGET_PREFIX}-checkbox-item">
+                            <div class="${WIDGET_PREFIX}-checkbox-item" onclick="toggleCheckbox('${WIDGET_PREFIX}-source-investments')">
                                 <input type="checkbox" class="${WIDGET_PREFIX}-checkbox" id="${WIDGET_PREFIX}-source-investments" value="investments">
-                                <label for="${WIDGET_PREFIX}-source-investments">Inversiones</label>
+                                <label class="${WIDGET_PREFIX}-checkbox-label" for="${WIDGET_PREFIX}-source-investments">📈 Inversiones</label>
                             </div>
-                            <div class="${WIDGET_PREFIX}-checkbox-item">
+                            <div class="${WIDGET_PREFIX}-checkbox-item" onclick="toggleCheckbox('${WIDGET_PREFIX}-source-other')">
                                 <input type="checkbox" class="${WIDGET_PREFIX}-checkbox" id="${WIDGET_PREFIX}-source-other" value="other">
-                                <label for="${WIDGET_PREFIX}-source-other">Otros</label>
+                                <label class="${WIDGET_PREFIX}-checkbox-label" for="${WIDGET_PREFIX}-source-other">🔗 Otros</label>
                             </div>
                         </div>
                     </div>
@@ -391,21 +522,48 @@
                 <div class="${WIDGET_PREFIX}-step" id="${WIDGET_PREFIX}-step-2">
                     <h2 class="${WIDGET_PREFIX}-step-title">💸 Paso 2: Cómo Usas tu Dinero</h2>
                     
-                    <div class="${WIDGET_PREFIX}-alert ${WIDGET_PREFIX}-alert-warning">
+                    <div class="${WIDGET_PREFIX}-alert ${WIDGET_PREFIX}-alert-info">
                         <strong>The Big Five:</strong> Vamos a clasificar tus gastos en las 5 categorías principales.
                     </div>
                     
+                    <!-- No Negociables con subcategorías -->
+                    <div class="${WIDGET_PREFIX}-form-group">
+                        <label class="${WIDGET_PREFIX}-label">🏠 No Negociables</label>
+                        <div class="${WIDGET_PREFIX}-subcategory">
+                            <div class="${WIDGET_PREFIX}-subcategory-title">Desglose de No Negociables:</div>
+                            <div class="${WIDGET_PREFIX}-grid">
+                                <div class="${WIDGET_PREFIX}-form-group">
+                                    <label class="${WIDGET_PREFIX}-label">🏠 Vivienda</label>
+                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-housing" placeholder="800">
+                                </div>
+                                <div class="${WIDGET_PREFIX}-form-group">
+                                    <label class="${WIDGET_PREFIX}-label">🍽️ Alimentación</label>
+                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-food" placeholder="300">
+                                </div>
+                                <div class="${WIDGET_PREFIX}-form-group">
+                                    <label class="${WIDGET_PREFIX}-label">🚗 Transporte</label>
+                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-transport" placeholder="150">
+                                </div>
+                                <div class="${WIDGET_PREFIX}-form-group">
+                                    <label class="${WIDGET_PREFIX}-label">🏥 Salud/Seguros</label>
+                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-health" placeholder="100">
+                                </div>
+                                <div class="${WIDGET_PREFIX}-form-group">
+                                    <label class="${WIDGET_PREFIX}-label">💡 Servicios</label>
+                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-utilities" placeholder="120">
+                                </div>
+                                <div class="${WIDGET_PREFIX}-form-group">
+                                    <label class="${WIDGET_PREFIX}-label">💳 Pagos de Deuda</label>
+                                    <input type="text" class="${WIDGET_PREFIX}-input non-negotiable-item" id="${WIDGET_PREFIX}-debt-payments-detail" placeholder="300">
+                                </div>
+                            </div>
+                            <div class="${WIDGET_PREFIX}-total-display">
+                                Total No Negociables: <span id="${WIDGET_PREFIX}-non-negotiables-total">€0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="${WIDGET_PREFIX}-grid">
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">🏠 No Negociables (sin deuda)</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-non-negotiables" placeholder="1,200">
-                        </div>
-                        
-                        <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">💳 Pago de Deudas</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-debt-payments" placeholder="300">
-                        </div>
-                        
                         <div class="${WIDGET_PREFIX}-form-group">
                             <label class="${WIDGET_PREFIX}-label">💰 Ahorro</label>
                             <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-savings" placeholder="250">
@@ -434,26 +592,26 @@
                     
                     <div class="${WIDGET_PREFIX}-grid">
                         <div class="${WIDGET_PREFIX}-form-group">
-                            <label class="${WIDGET_PREFIX}-label">💧 Activos Líquidos</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-liquid-assets" placeholder="5,000">
+                            <label class="${WIDGET_PREFIX}-label">💧 Activos Líquidos <em>(sin fondo de emergencia)</em></label>
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-liquid-assets" placeholder="5.000">
                             <small>Inversiones que puedes convertir en efectivo rápidamente</small>
                         </div>
                         
                         <div class="${WIDGET_PREFIX}-form-group">
                             <label class="${WIDGET_PREFIX}-label">🏢 Activos No Líquidos</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-illiquid-assets" placeholder="50,000">
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-illiquid-assets" placeholder="50.000">
                             <small>Inmuebles, vehículos, etc.</small>
                         </div>
                         
                         <div class="${WIDGET_PREFIX}-form-group">
                             <label class="${WIDGET_PREFIX}-label">💵 Efectivo Disponible</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-cash" placeholder="1,000">
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-cash" placeholder="1.000">
                             <small>Dinero en cuentas corrientes/ahorros</small>
                         </div>
                         
                         <div class="${WIDGET_PREFIX}-form-group">
                             <label class="${WIDGET_PREFIX}-label">🐷 Fondo de Emergencia</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-emergency-fund" placeholder="3,000">
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-emergency-fund" placeholder="3.000">
                             <small>Tu marranito de emergencia</small>
                         </div>
                     </div>
@@ -466,19 +624,19 @@
                     <div class="${WIDGET_PREFIX}-grid">
                         <div class="${WIDGET_PREFIX}-form-group">
                             <label class="${WIDGET_PREFIX}-label">🛍️ Deuda de Consumo</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-consumer-debt" placeholder="5,000">
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-consumer-debt" placeholder="5.000">
                             <small>Tarjetas de crédito, préstamos personales</small>
                         </div>
                         
                         <div class="${WIDGET_PREFIX}-form-group">
                             <label class="${WIDGET_PREFIX}-label">🏠 Deuda Hipotecaria</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-mortgage-debt" placeholder="150,000">
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-mortgage-debt" placeholder="150.000">
                             <small>Préstamo de la casa</small>
                         </div>
                         
                         <div class="${WIDGET_PREFIX}-form-group ${WIDGET_PREFIX}-full-width">
                             <label class="${WIDGET_PREFIX}-label">📋 Otro Tipo de Deuda</label>
-                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-other-debt" placeholder="2,000">
+                            <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-other-debt" placeholder="2.000">
                             <small>Préstamos estudiantiles, familiares, etc.</small>
                         </div>
                     </div>
@@ -486,226 +644,380 @@
                 
                 <!-- Dashboard -->
                 <div class="${WIDGET_PREFIX}-dashboard" id="${WIDGET_PREFIX}-dashboard">
-                    <div class="${WIDGET_PREFIX}-dashboard-panel">
-                        <h3 class="${WIDGET_PREFIX}-dashboard-title">📊 Tus Métricas Clave</h3>
-                        <div class="${WIDGET_PREFIX}-metric">
-                            <span class="${WIDGET_PREFIX}-metric-label">Distribución de Ingresos:</span>
-                            <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-income-distribution">-</span>
-                        </div>
-                        <div class="${WIDGET_PREFIX}-metric">
-                            <span class="${WIDGET_PREFIX}-metric-label">Solvencia:</span>
-                            <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-solvency">-</span>
-                        </div>
-                        <div class="${WIDGET_PREFIX}-metric">
-                            <span class="${WIDGET_PREFIX}-metric-label">% Endeudamiento:</span>
-                            <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-ratio">-</span>
-                        </div>
-                        <div class="${WIDGET_PREFIX}-metric">
-                            <span class="${WIDGET_PREFIX}-metric-label">% Ingresos a Deuda:</span>
-                            <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-to-income">-</span>
-                        </div>
-                        <div class="${WIDGET_PREFIX}-metric">
-                            <span class="${WIDGET_PREFIX}-metric-label">Meses de Emergencia:</span>
-                            <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-emergency-months">-</span>
-                        </div>
-                    </div>
-                    
-                    <div class="${WIDGET_PREFIX}-dashboard-panel">
-                        <h3 class="${WIDGET_PREFIX}-dashboard-title">✏️ Editar Datos</h3>
-                        
-                        <div class="${WIDGET_PREFIX}-editable-section">
-                            <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('income')">
-                                💰 Ingresos <span id="${WIDGET_PREFIX}-income-toggle">+</span>
+                    <!-- Métricas principales -->
+                    <div class="${WIDGET_PREFIX}-dashboard-metrics">
+                        <div class="${WIDGET_PREFIX}-dashboard-panel">
+                            <h3 class="${WIDGET_PREFIX}-dashboard-title">📊 Distribución de Ingresos</h3>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">Total gastado:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-total-expenses">-</span>
                             </div>
-                            <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-income-content">
-                                <div class="${WIDGET_PREFIX}-form-group">
-                                    <label class="${WIDGET_PREFIX}-label">Ingresos Mensuales</label>
-                                    <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-income">
-                                </div>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">% de ingresos usado:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-income-distribution">-</span>
+                            </div>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">Sobrante mensual:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-monthly-surplus">-</span>
                             </div>
                         </div>
                         
-                        <div class="${WIDGET_PREFIX}-editable-section">
-                            <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('expenses')">
-                                💸 Gastos <span id="${WIDGET_PREFIX}-expenses-toggle">+</span>
+                        <div class="${WIDGET_PREFIX}-dashboard-panel">
+                            <h3 class="${WIDGET_PREFIX}-dashboard-title">🛡️ Estabilidad Financiera</h3>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">Solvencia:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-solvency">-</span>
                             </div>
-                            <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-expenses-content">
-                                <div class="${WIDGET_PREFIX}-grid">
-                                    <div class="${WIDGET_PREFIX}-form-group">
-                                        <label class="${WIDGET_PREFIX}-label">No Negociables</label>
-                                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-non-negotiables">
-                                    </div>
-                                    <div class="${WIDGET_PREFIX}-form-group">
-                                        <label class="${WIDGET_PREFIX}-label">Pago Deudas</label>
-                                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-debt-payments">
-                                    </div>
-                                    <div class="${WIDGET_PREFIX}-form-group">
-                                        <label class="${WIDGET_PREFIX}-label">Ahorro</label>
-                                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-savings">
-                                    </div>
-                                    <div class="${WIDGET_PREFIX}-form-group">
-                                        <label class="${WIDGET_PREFIX}-label">Inversión</label>
-                                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-investment">
-                                    </div>
-                                </div>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">% Endeudamiento:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-ratio">-</span>
+                            </div>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">% Ingresos a Deuda:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-debt-to-income">-</span>
                             </div>
                         </div>
                         
-                        <div class="${WIDGET_PREFIX}-editable-section">
-                            <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('assets')">
-                                🏛️ Activos <span id="${WIDGET_PREFIX}-assets-toggle">+</span>
+                        <div class="${WIDGET_PREFIX}-dashboard-panel">
+                            <h3 class="${WIDGET_PREFIX}-dashboard-title">🐷 Fondo de Emergencia</h3>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">Meses cubiertos:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-emergency-months">-</span>
                             </div>
-                            <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-assets-content">
-                                <div class="${WIDGET_PREFIX}-grid">
-                                    <div class="${WIDGET_PREFIX}-form-group">
-                                        <label class="${WIDGET_PREFIX}-label">Líquidos</label>
-                                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-liquid-assets">
-                                    </div>
-                                    <div class="${WIDGET_PREFIX}-form-group">
-                                        <label class="${WIDGET_PREFIX}-label">No Líquidos</label>
-                                        <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-illiquid-assets">
-                                    </div>
-                                </div>
+                            <div class="${WIDGET_PREFIX}-metric">
+                                <span class="${WIDGET_PREFIX}-metric-label">Recomendado:</span>
+                                <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-recommended-months">-</span>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="${WIDGET_PREFIX}-navigation">
-                    <button class="${WIDGET_PREFIX}-button ${WIDGET_PREFIX}-button-secondary" id="${WIDGET_PREFIX}-prev-btn" onclick="previousStep()" style="display: none;">← Anterior</button>
-                    <span id="${WIDGET_PREFIX}-step-indicator">Paso 1 de 4</span>
-                    <button class="${WIDGET_PREFIX}-button" id="${WIDGET_PREFIX}-next-btn" onclick="nextStep()">Siguiente →</button>
-                </div>
-            </div>
-        `;
-        
-        // Inicializar el widget
-        initializeWidget();
-    }
-    
-    // Variables globales del widget
-    let currentStep = 1;
-    const totalSteps = 4;
-    let widgetData = {};
-    
-    function initializeWidget() {
-        try {
-            // Cargar datos guardados si existen
-            loadSavedData();
-            
-            // Configurar eventos de formato para inputs numéricos
-            setupNumberFormatting();
-            
-            // Actualizar indicador de progreso
-            updateProgress();
-            
-            // Configurar auto-guardado
-            setupAutoSave();
-            
-        } catch (error) {
-            console.error('Error inicializando widget:', error);
-        }
-    }
-    
-    function setupNumberFormatting() {
-        const numberInputs = document.querySelectorAll(`[id*="${WIDGET_PREFIX}"][type="text"]`);
-        
-        numberInputs.forEach(input => {
-            // Al salir del campo, formatear
-            input.addEventListener('blur', function() {
-                const value = parseFloat(this.value.replace(/[^\d.-]/g, ''));
-                if (!isNaN(value)) {
-                    this.value = formatNumber(value);
-                }
-            });
-            
-            // Al entrar al campo, quitar formato
-            input.addEventListener('focus', function() {
-                const value = parseFloat(this.value.replace(/[^\d.-]/g, ''));
-                if (!isNaN(value)) {
-                    this.value = value.toString();
-                }
-            });
-        });
-    }
-    
-    function setupAutoSave() {
-        const inputs = document.querySelectorAll(`[id*="${WIDGET_PREFIX}"]`);
-        inputs.forEach(input => {
-            input.addEventListener('change', saveData);
-            input.addEventListener('input', debounce(saveData, 1000));
-        });
-    }
-    
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-    
-    // Funciones de navegación
-    window.nextStep = function() {
-        if (validateCurrentStep() && currentStep < totalSteps) {
-            currentStep++;
-            showStep(currentStep);
-        } else if (currentStep === totalSteps) {
-            showDashboard();
-        }
-    };
-    
-    window.previousStep = function() {
-        if (currentStep > 1) {
-            currentStep--;
-            showStep(currentStep);
-        }
-    };
-    
-    function showStep(step) {
-        try {
-            // Ocultar todos los pasos
-            for (let i = 1; i <= totalSteps; i++) {
-                const stepEl = document.getElementById(`${WIDGET_PREFIX}-step-${i}`);
-                if (stepEl) stepEl.classList.remove('active');
-            }
-            
-            // Mostrar paso actual
-            const currentStepEl = document.getElementById(`${WIDGET_PREFIX}-step-${step}`);
-            if (currentStepEl) currentStepEl.classList.add('active');
-            
-            // Ocultar dashboard
-            const dashboard = document.getElementById(`${WIDGET_PREFIX}-dashboard`);
-            if (dashboard) dashboard.classList.remove('active');
-            
-            updateNavigation();
-            updateProgress();
-            
-        } catch (error) {
-            console.error('Error mostrando paso:', error);
-        }
-    }
-    
-    function showDashboard() {
-        try {
-            // Ocultar todos los pasos
-            for (let i = 1; i <= totalSteps; i++) {
-                const stepEl = document.getElementById(`${WIDGET_PREFIX}-step-${i}`);
-                if (stepEl) stepEl.classList.remove('active');
-            }
-            
-            // Mostrar dashboard
-            const dashboard = document.getElementById(`${WIDGET_PREFIX}-dashboard`);
-            if (dashboard) dashboard.classList.add('active');
-            
-            // Actualizar navegación para dashboard
-            const prevBtn = document.getElementById(`${WIDGET_PREFIX}-prev-btn`);
-            const nextBtn = document.getElementById(`${WIDGET_PREFIX}-next-btn`);
-            const stepIndicator = document.getElementById(`${WIDGET_PREFIX}-step-indicator`);
+                            <div class="${WIDGET_PREFIX}-metric">
+                               <span class="${WIDGET_PREFIX}-metric-label">Estado:</span>
+                               <span class="${WIDGET_PREFIX}-metric-value" id="${WIDGET_PREFIX}-emergency-status">-</span>
+                           </div>
+                       </div>
+                   </div>
+                   
+                   <!-- Sección de edición -->
+                   <div class="${WIDGET_PREFIX}-dashboard-edit">
+                       <h3 class="${WIDGET_PREFIX}-dashboard-title">✏️ Editar Datos</h3>
+                       
+                       <div class="${WIDGET_PREFIX}-editable-section">
+                           <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('income')">
+                               💰 Ingresos <span id="${WIDGET_PREFIX}-income-toggle">+</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-income-content">
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">Ingresos Mensuales</label>
+                                   <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-income">
+                               </div>
+                               <div class="${WIDGET_PREFIX}-form-group">
+                                   <label class="${WIDGET_PREFIX}-label">Estabilidad de Ingresos</label>
+                                   <select class="${WIDGET_PREFIX}-select" id="${WIDGET_PREFIX}-edit-stability">
+                                       <option value="very-stable">Muy estables</option>
+                                       <option value="stable">Estables</option>
+                                       <option value="variable">Variables</option>
+                                       <option value="very-variable">Muy variables</option>
+                                   </select>
+                               </div>
+                           </div>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-editable-section">
+                           <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('non-negotiables')">
+                               🏠 No Negociables <span id="${WIDGET_PREFIX}-non-negotiables-toggle">+</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-non-negotiables-content">
+                               <div class="${WIDGET_PREFIX}-grid">
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Vivienda</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input edit-non-negotiable" id="${WIDGET_PREFIX}-edit-housing">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Alimentación</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input edit-non-negotiable" id="${WIDGET_PREFIX}-edit-food">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Transporte</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input edit-non-negotiable" id="${WIDGET_PREFIX}-edit-transport">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Salud/Seguros</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input edit-non-negotiable" id="${WIDGET_PREFIX}-edit-health">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Servicios</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input edit-non-negotiable" id="${WIDGET_PREFIX}-edit-utilities">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Pagos de Deuda</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input edit-non-negotiable" id="${WIDGET_PREFIX}-edit-debt-payments">
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-editable-section">
+                           <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('big-five')">
+                               💸 Otros Gastos (Big Five) <span id="${WIDGET_PREFIX}-big-five-toggle">+</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-big-five-content">
+                               <div class="${WIDGET_PREFIX}-grid">
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Ahorro</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-savings">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Inversión</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-investment">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Viva la Vida</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-lifestyle">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Granito de Arena</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-giving">
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-editable-section">
+                           <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('assets')">
+                               🏛️ Activos <span id="${WIDGET_PREFIX}-assets-toggle">+</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-assets-content">
+                               <div class="${WIDGET_PREFIX}-grid">
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Activos Líquidos</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-liquid-assets">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Activos No Líquidos</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-illiquid-assets">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Efectivo Disponible</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-cash">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Fondo de Emergencia</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-emergency-fund">
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                       
+                       <div class="${WIDGET_PREFIX}-editable-section">
+                           <div class="${WIDGET_PREFIX}-editable-title" onclick="toggleSection('debts')">
+                               💳 Deudas <span id="${WIDGET_PREFIX}-debts-toggle">+</span>
+                           </div>
+                           <div class="${WIDGET_PREFIX}-collapsible-content" id="${WIDGET_PREFIX}-debts-content">
+                               <div class="${WIDGET_PREFIX}-grid">
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Deuda de Consumo</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-consumer-debt">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group">
+                                       <label class="${WIDGET_PREFIX}-label">Deuda Hipotecaria</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-mortgage-debt">
+                                   </div>
+                                   <div class="${WIDGET_PREFIX}-form-group ${WIDGET_PREFIX}-full-width">
+                                       <label class="${WIDGET_PREFIX}-label">Otra Deuda</label>
+                                       <input type="text" class="${WIDGET_PREFIX}-input" id="${WIDGET_PREFIX}-edit-other-debt">
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="${WIDGET_PREFIX}-navigation">
+                   <button class="${WIDGET_PREFIX}-button ${WIDGET_PREFIX}-button-secondary" id="${WIDGET_PREFIX}-prev-btn" onclick="previousStep()" style="display: none;">← Anterior</button>
+                   <span id="${WIDGET_PREFIX}-step-indicator">Paso 1 de 4</span>
+                   <button class="${WIDGET_PREFIX}-button" id="${WIDGET_PREFIX}-next-btn" onclick="nextStep()">Siguiente →</button>
+               </div>
+           </div>
+       `;
+       
+       // Inicializar el widget
+       initializeWidget();
+   }
+   
+   // Variables globales del widget
+   let currentStep = 1;
+   const totalSteps = 4;
+   let widgetData = {};
+   
+   function initializeWidget() {
+       try {
+           // Cargar datos guardados si existen
+           loadSavedData();
+           
+           // Configurar eventos de formato para inputs numéricos
+           setupNumberFormatting();
+           
+           // Configurar cálculo automático de No Negociables
+           setupNonNegotiablesCalculation();
+           
+           // Actualizar indicador de progreso
+           updateProgress();
+           
+           // Configurar auto-guardado
+           setupAutoSave();
+           
+       } catch (error) {
+           console.error('Error inicializando widget:', error);
+       }
+   }
+   
+   function setupNumberFormatting() {
+       const numberInputs = document.querySelectorAll(`[id*="${WIDGET_PREFIX}"][type="text"]`);
+       
+       numberInputs.forEach(input => {
+           // Al salir del campo, formatear
+           input.addEventListener('blur', function() {
+               const value = parseFormattedNumber(this.value);
+               if (value > 0) {
+                   this.value = formatNumber(value);
+               }
+           });
+           
+           // Al entrar al campo, quitar formato
+           input.addEventListener('focus', function() {
+               const value = parseFormattedNumber(this.value);
+               if (value > 0) {
+                   this.value = value.toString();
+               }
+           });
+       });
+   }
+   
+   function setupNonNegotiablesCalculation() {
+       const nonNegotiableInputs = document.querySelectorAll('.non-negotiable-item');
+       const editNonNegotiableInputs = document.querySelectorAll('.edit-non-negotiable');
+       
+       function updateNonNegotiablesTotal() {
+           let total = 0;
+           nonNegotiableInputs.forEach(input => {
+               total += parseFormattedNumber(input.value);
+           });
+           
+           const totalDisplay = document.getElementById(`${WIDGET_PREFIX}-non-negotiables-total`);
+           if (totalDisplay) {
+               totalDisplay.textContent = formatCurrency(total);
+           }
+       }
+       
+       function updateEditNonNegotiablesTotal() {
+           let total = 0;
+           editNonNegotiableInputs.forEach(input => {
+               total += parseFormattedNumber(input.value);
+           });
+           calculateMetrics();
+       }
+       
+       nonNegotiableInputs.forEach(input => {
+           input.addEventListener('input', debounce(updateNonNegotiablesTotal, 300));
+           input.addEventListener('blur', updateNonNegotiablesTotal);
+       });
+       
+       editNonNegotiableInputs.forEach(input => {
+           input.addEventListener('input', debounce(updateEditNonNegotiablesTotal, 300));
+           input.addEventListener('blur', updateEditNonNegotiablesTotal);
+       });
+       
+       // Cálculo inicial
+       updateNonNegotiablesTotal();
+   }
+   
+   function setupAutoSave() {
+       const inputs = document.querySelectorAll(`[id*="${WIDGET_PREFIX}"]`);
+       inputs.forEach(input => {
+           input.addEventListener('change', saveData);
+           input.addEventListener('input', debounce(saveData, 1000));
+       });
+   }
+   
+   function debounce(func, wait) {
+       let timeout;
+       return function executedFunction(...args) {
+           const later = () => {
+               clearTimeout(timeout);
+               func(...args);
+           };
+           clearTimeout(timeout);
+           timeout = setTimeout(later, wait);
+       };
+   }
+   
+   // Función para toggle de checkboxes
+   window.toggleCheckbox = function(checkboxId) {
+       const checkbox = document.getElementById(checkboxId);
+       const container = checkbox.closest(`.${WIDGET_PREFIX}-checkbox-item`);
+       
+       if (checkbox && container) {
+           checkbox.checked = !checkbox.checked;
+           container.classList.toggle('selected', checkbox.checked);
+           saveData();
+       }
+   };
+   
+   // Funciones de navegación
+   window.nextStep = function() {
+       if (validateCurrentStep() && currentStep < totalSteps) {
+           currentStep++;
+           showStep(currentStep);
+       } else if (currentStep === totalSteps) {
+           showDashboard();
+       }
+   };
+   
+   window.previousStep = function() {
+       if (currentStep > 1) {
+           currentStep--;
+           showStep(currentStep);
+       }
+   };
+   
+   function showStep(step) {
+       try {
+           // Ocultar todos los pasos
+           for (let i = 1; i <= totalSteps; i++) {
+               const stepEl = document.getElementById(`${WIDGET_PREFIX}-step-${i}`);
+               if (stepEl) stepEl.classList.remove('active');
+           }
+           
+           // Mostrar paso actual
+           const currentStepEl = document.getElementById(`${WIDGET_PREFIX}-step-${step}`);
+           if (currentStepEl) currentStepEl.classList.add('active');
+           
+           // Ocultar dashboard
+           const dashboard = document.getElementById(`${WIDGET_PREFIX}-dashboard`);
+           if (dashboard) dashboard.classList.remove('active');
+           
+           updateNavigation();
+           updateProgress();
+           
+       } catch (error) {
+           console.error('Error mostrando paso:', error);
+       }
+   }
+   
+   function showDashboard() {
+       try {
+           // Ocultar todos los pasos
+           for (let i = 1; i <= totalSteps; i++) {
+               const stepEl = document.getElementById(`${WIDGET_PREFIX}-step-${i}`);
+               if (stepEl) stepEl.classList.remove('active');
+           }
+           
+           // Mostrar dashboard
+           const dashboard = document.getElementById(`${WIDGET_PREFIX}-dashboard`);
+           if (dashboard) dashboard.classList.add('active');
+           
+           // Actualizar navegación para dashboard
+           const prevBtn = document.getElementById(`${WIDGET_PREFIX}-prev-btn`);
+           const nextBtn = document.getElementById(`${WIDGET_PREFIX}-next-btn`);
+           const stepIndicator = document.getElementById(`${WIDGET_PREFIX}-step-indicator`);
            
            if (prevBtn) prevBtn.style.display = 'inline-block';
            if (nextBtn) {
@@ -757,7 +1069,7 @@
                    const income = document.getElementById(`${WIDGET_PREFIX}-monthly-income`).value;
                    const stability = document.getElementById(`${WIDGET_PREFIX}-income-stability`).value;
                    
-                   if (!income || parseFloat(income.replace(/[^\d.-]/g, '')) <= 0) {
+                   if (!income || parseFormattedNumber(income) <= 0) {
                        showAlert('Por favor, ingresa tus ingresos mensuales', 'warning');
                        return false;
                    }
@@ -778,7 +1090,7 @@
                case 2:
                    // Verificar que la suma de gastos no exceda los ingresos
                    const totalExpenses = getTotalExpenses();
-                   const monthlyIncome = getNumericValue(`${WIDGET_PREFIX}-monthly-income`);
+                   const monthlyIncome = parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-monthly-income`).value);
                    
                    if (totalExpenses > monthlyIncome * 1.1) { // 10% de tolerancia
                        showAlert('Tus gastos superan significativamente tus ingresos. Revisa los montos.', 'warning');
@@ -788,8 +1100,8 @@
                    
                case 3:
                    // Validación básica de activos
-                   const liquidAssets = getNumericValue(`${WIDGET_PREFIX}-liquid-assets`);
-                   const emergencyFund = getNumericValue(`${WIDGET_PREFIX}-emergency-fund`);
+                   const liquidAssets = parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-liquid-assets`).value);
+                   const emergencyFund = parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-emergency-fund`).value);
                    
                    if (liquidAssets < 0 || emergencyFund < 0) {
                        showAlert('Los valores de activos no pueden ser negativos', 'warning');
@@ -799,10 +1111,10 @@
                    
                case 4:
                    // Validación de deudas
-                   const debtPayments = getNumericValue(`${WIDGET_PREFIX}-debt-payments`);
-                   const totalDebt = getTotalDebt();
+                   const debtPayments = parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-debt-payments-detail`).value);
+                   const monthlyIncomeStep4 = parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-monthly-income`).value);
                    
-                   if (debtPayments > monthlyIncome * 0.5) {
+                   if (debtPayments > monthlyIncomeStep4 * 0.5) {
                        showAlert('El pago de deudas representa más del 50% de tus ingresos. Esto puede ser riesgoso.', 'warning');
                    }
                    break;
@@ -844,13 +1156,42 @@
    function getNumericValue(id) {
        const element = document.getElementById(id);
        if (!element) return 0;
-       const value = element.value.replace(/[^\d.-]/g, '');
-       return validateNumber(parseFloat(value) || 0);
+       return parseFormattedNumber(element.value);
+   }
+   
+   function getNonNegotiablesTotal() {
+       const nonNegotiableIds = [
+           `${WIDGET_PREFIX}-housing`,
+           `${WIDGET_PREFIX}-food`,
+           `${WIDGET_PREFIX}-transport`,
+           `${WIDGET_PREFIX}-health`,
+           `${WIDGET_PREFIX}-utilities`,
+           `${WIDGET_PREFIX}-debt-payments-detail`
+       ];
+       
+       return nonNegotiableIds.reduce((total, id) => {
+           return total + getNumericValue(id);
+       }, 0);
+   }
+   
+   function getEditNonNegotiablesTotal() {
+       const editNonNegotiableIds = [
+           `${WIDGET_PREFIX}-edit-housing`,
+           `${WIDGET_PREFIX}-edit-food`,
+           `${WIDGET_PREFIX}-edit-transport`,
+           `${WIDGET_PREFIX}-edit-health`,
+           `${WIDGET_PREFIX}-edit-utilities`,
+           `${WIDGET_PREFIX}-edit-debt-payments`
+       ];
+       
+       return editNonNegotiableIds.reduce((total, id) => {
+           return total + getNumericValue(id);
+       }, 0);
    }
    
    function getTotalExpenses() {
-       return getNumericValue(`${WIDGET_PREFIX}-non-negotiables`) +
-              getNumericValue(`${WIDGET_PREFIX}-debt-payments`) +
+       const nonNegotiables = getNonNegotiablesTotal();
+       return nonNegotiables +
               getNumericValue(`${WIDGET_PREFIX}-savings`) +
               getNumericValue(`${WIDGET_PREFIX}-investment`) +
               getNumericValue(`${WIDGET_PREFIX}-lifestyle`) +
@@ -870,50 +1211,80 @@
               getNumericValue(`${WIDGET_PREFIX}-emergency-fund`);
    }
    
+   function getRecommendedEmergencyMonths() {
+       const stability = document.getElementById(`${WIDGET_PREFIX}-income-stability`).value ||
+                        document.getElementById(`${WIDGET_PREFIX}-edit-stability`).value;
+       
+       if (stability === 'very-stable' || stability === 'stable') {
+           return 3;
+       } else {
+           return 6;
+       }
+   }
+   
    // Funciones de cálculo de métricas
    function calculateMetrics() {
        try {
-           const income = getNumericValue(`${WIDGET_PREFIX}-edit-income`) || getNumericValue(`${WIDGET_PREFIX}-monthly-income`);
-           const nonNegotiables = getNumericValue(`${WIDGET_PREFIX}-edit-non-negotiables`) || getNumericValue(`${WIDGET_PREFIX}-non-negotiables`);
-           const debtPayments = getNumericValue(`${WIDGET_PREFIX}-edit-debt-payments`) || getNumericValue(`${WIDGET_PREFIX}-debt-payments`);
-           const savings = getNumericValue(`${WIDGET_PREFIX}-edit-savings`) || getNumericValue(`${WIDGET_PREFIX}-savings`);
-           const investment = getNumericValue(`${WIDGET_PREFIX}-edit-investment`) || getNumericValue(`${WIDGET_PREFIX}-investment`);
-           const lifestyle = getNumericValue(`${WIDGET_PREFIX}-lifestyle`);
-           const giving = getNumericValue(`${WIDGET_PREFIX}-giving`);
+           const income = getNumericValue(`${WIDGET_PREFIX}-edit-income`) || 
+                         parseFormattedNumber(document.getElementById(`${WIDGET_PREFIX}-monthly-income`).value);
            
-           const totalAssets = getTotalAssets();
-           const totalDebt = getTotalDebt();
-           const emergencyFund = getNumericValue(`${WIDGET_PREFIX}-emergency-fund`);
+           const nonNegotiables = getEditNonNegotiablesTotal() || getNonNegotiablesTotal();
+           const savings = getNumericValue(`${WIDGET_PREFIX}-edit-savings`) || 
+                          getNumericValue(`${WIDGET_PREFIX}-savings`);
+           const investment = getNumericValue(`${WIDGET_PREFIX}-edit-investment`) || 
+                             getNumericValue(`${WIDGET_PREFIX}-investment`);
+           const lifestyle = getNumericValue(`${WIDGET_PREFIX}-edit-lifestyle`) || 
+                            getNumericValue(`${WIDGET_PREFIX}-lifestyle`);
+           const giving = getNumericValue(`${WIDGET_PREFIX}-edit-giving`) || 
+                         getNumericValue(`${WIDGET_PREFIX}-giving`);
            
-           // Distribución de ingresos
-           const totalExpenses = nonNegotiables + debtPayments + savings + investment + lifestyle + giving;
-           const distributionText = income > 0 ? 
-               `${Math.round((totalExpenses / income) * 100)}% utilizado` : 'N/A';
+           const totalAssets = getNumericValue(`${WIDGET_PREFIX}-edit-liquid-assets`) + 
+                              getNumericValue(`${WIDGET_PREFIX}-edit-illiquid-assets`) + 
+                              getNumericValue(`${WIDGET_PREFIX}-edit-cash`) + 
+                              getNumericValue(`${WIDGET_PREFIX}-edit-emergency-fund`) || getTotalAssets();
            
-           // Solvencia (Activos / Pasivos)
+           const totalDebt = getNumericValue(`${WIDGET_PREFIX}-edit-consumer-debt`) + 
+                            getNumericValue(`${WIDGET_PREFIX}-edit-mortgage-debt`) + 
+                            getNumericValue(`${WIDGET_PREFIX}-edit-other-debt`) || getTotalDebt();
+           
+           const emergencyFund = getNumericValue(`${WIDGET_PREFIX}-edit-emergency-fund`) || 
+                                getNumericValue(`${WIDGET_PREFIX}-emergency-fund`);
+           
+           const debtPayments = getNumericValue(`${WIDGET_PREFIX}-edit-debt-payments`) || 
+                               getNumericValue(`${WIDGET_PREFIX}-debt-payments-detail`);
+           
+           // Cálculos
+           const totalExpenses = nonNegotiables + savings + investment + lifestyle + giving;
+           const monthlyBalance = income - totalExpenses;
+           const expenseRatio = income > 0 ? (totalExpenses / income) * 100 : 0;
+           
            const solvency = totalDebt > 0 ? (totalAssets / totalDebt).toFixed(2) : '∞';
+           const debtRatio = totalAssets > 0 ? Math.round((totalDebt / totalAssets) * 100) : 0;
+           const debtToIncome = income > 0 ? Math.round((debtPayments / income) * 100) : 0;
            
-           // % Endeudamiento (Deuda / Activos)
-           const debtRatio = totalAssets > 0 ? 
-               `${Math.round((totalDebt / totalAssets) * 100)}%` : 'N/A';
+           // Fondo de emergencia
+           const nonNegotiablesForEmergency = nonNegotiables - debtPayments; // Sin incluir pagos de deuda para el cálculo
+           const monthsOfEmergency = nonNegotiablesForEmergency > 0 ? 
+               (emergencyFund / nonNegotiablesForEmergency).toFixed(1) : '0';
            
-           // % Ingresos a pago de deuda
-           const debtToIncome = income > 0 ? 
-               `${Math.round((debtPayments / income) * 100)}%` : 'N/A';
-           
-           // Meses de emergencia
-           const monthsOfEmergency = nonNegotiables > 0 ? 
-               (emergencyFund / nonNegotiables).toFixed(1) : '0';
+           const recommendedMonths = getRecommendedEmergencyMonths();
+           const emergencyStatus = parseFloat(monthsOfEmergency) >= recommendedMonths ? 
+               '✅ Excelente' : parseFloat(monthsOfEmergency) >= recommendedMonths * 0.5 ? 
+               '⚠️ Mejorando' : '🚨 Insuficiente';
            
            // Actualizar UI
-           updateMetricDisplay('income-distribution', distributionText);
+           updateMetricDisplay('total-expenses', formatCurrency(totalExpenses));
+           updateMetricDisplay('income-distribution', `${Math.round(expenseRatio)}%`);
+           updateMetricDisplay('monthly-surplus', formatCurrency(monthlyBalance));
            updateMetricDisplay('solvency', solvency);
-           updateMetricDisplay('debt-ratio', debtRatio);
-           updateMetricDisplay('debt-to-income', debtToIncome);
+           updateMetricDisplay('debt-ratio', `${debtRatio}%`);
+           updateMetricDisplay('debt-to-income', `${debtToIncome}%`);
            updateMetricDisplay('emergency-months', `${monthsOfEmergency} meses`);
+           updateMetricDisplay('recommended-months', `${recommendedMonths} meses`);
+           updateMetricDisplay('emergency-status', emergencyStatus);
            
            // Mostrar alertas basadas en métricas
-           showMetricAlerts(debtToIncome, monthsOfEmergency, solvency);
+           showMetricAlerts(debtToIncome, parseFloat(monthsOfEmergency), recommendedMonths, monthlyBalance);
            
        } catch (error) {
            console.error('Error calculando métricas:', error);
@@ -927,8 +1298,8 @@
        }
    }
    
-   function showMetricAlerts(debtToIncome, monthsOfEmergency, solvency) {
-       const alertsContainer = document.querySelector(`.${WIDGET_PREFIX}-dashboard-panel`);
+   function showMetricAlerts(debtToIncome, monthsOfEmergency, recommendedMonths, monthlyBalance) {
+       const alertsContainer = document.querySelector(`.${WIDGET_PREFIX}-dashboard-metrics`);
        if (!alertsContainer) return;
        
        // Remover alertas anteriores
@@ -937,14 +1308,31 @@
        
        const alerts = [];
        
+       // Alertas por balance mensual
+       if (monthlyBalance < 0) {
+           alerts.push({
+               type: 'danger',
+               message: '🚨 Tus gastos superan tus ingresos mensuales'
+           });
+       } else if (monthlyBalance < 100) {
+           alerts.push({
+               type: 'warning',
+               message: '⚠️ Tu margen mensual es muy ajustado'
+           });
+       } else if (monthlyBalance > 500) {
+           alerts.push({
+               type: 'success',
+               message: '✅ ¡Excelente gestión de gastos!'
+           });
+       }
+       
        // Alertas por % de deuda a ingresos
-       const debtPercent = parseFloat(debtToIncome);
-       if (debtPercent > 40) {
+       if (debtToIncome > 40) {
            alerts.push({
                type: 'danger',
                message: '⚠️ Tu pago de deudas es muy alto (>40% de ingresos)'
            });
-       } else if (debtPercent > 30) {
+       } else if (debtToIncome > 30) {
            alerts.push({
                type: 'warning',
                message: '⚡ Tu pago de deudas está en zona de riesgo (>30%)'
@@ -952,30 +1340,21 @@
        }
        
        // Alertas por fondo de emergencia
-       const months = parseFloat(monthsOfEmergency);
-       if (months < 1) {
+       if (monthsOfEmergency < 1) {
            alerts.push({
                type: 'danger',
-               message: '🚨 Tu fondo de emergencia es insuficiente (<1 mes)'
+               message: '🚨 Tu fondo de emergencia es crítico (<1 mes)'
            });
-       } else if (months < 3) {
+       } else if (monthsOfEmergency < recommendedMonths) {
+           const deficit = (recommendedMonths - monthsOfEmergency).toFixed(1);
            alerts.push({
                type: 'warning',
-               message: '💡 Considera aumentar tu fondo de emergencia (ideal: 3-6 meses)'
+               message: `💡 Te faltan ${deficit} meses de fondo de emergencia para llegar al recomendado`
            });
-       } else if (months >= 6) {
+       } else if (monthsOfEmergency >= recommendedMonths) {
            alerts.push({
                type: 'success',
-               message: '✅ ¡Excelente fondo de emergencia!'
-           });
-       }
-       
-       // Alertas por solvencia
-       const solvencyRatio = parseFloat(solvency);
-       if (solvencyRatio < 1 && solvency !== '∞') {
-           alerts.push({
-               type: 'danger',
-               message: '⚠️ Tus deudas superan tus activos'
+               message: '✅ ¡Tu fondo de emergencia está en excelente estado!'
            });
        }
        
@@ -985,6 +1364,7 @@
                const alertEl = document.createElement('div');
                alertEl.className = `${WIDGET_PREFIX}-alert ${WIDGET_PREFIX}-alert-${alert.type} metric-alert`;
                alertEl.textContent = alert.message;
+               alertEl.style.marginTop = '16px';
                alertsContainer.appendChild(alertEl);
            }, index * 200);
        });
@@ -1039,6 +1419,11 @@
                    if (element) {
                        if (element.type === 'checkbox') {
                            element.checked = data[key];
+                           // Actualizar el estilo visual del checkbox
+                           const container = element.closest(`.${WIDGET_PREFIX}-checkbox-item`);
+                           if (container) {
+                               container.classList.toggle('selected', element.checked);
+                           }
                        } else {
                            element.value = data[key];
                        }
@@ -1051,15 +1436,36 @@
    }
    
    function loadDashboardData() {
-       // Cargar datos en los campos editables del dashboard
+       // Mapeo de campos para cargar en el dashboard
        const mappings = [
+           // Ingresos
            ['edit-income', 'monthly-income'],
-           ['edit-non-negotiables', 'non-negotiables'],
-           ['edit-debt-payments', 'debt-payments'],
+           ['edit-stability', 'income-stability'],
+           
+           // No Negociables
+           ['edit-housing', 'housing'],
+           ['edit-food', 'food'],
+           ['edit-transport', 'transport'],
+           ['edit-health', 'health'],
+           ['edit-utilities', 'utilities'],
+           ['edit-debt-payments', 'debt-payments-detail'],
+           
+           // Big Five
            ['edit-savings', 'savings'],
            ['edit-investment', 'investment'],
+           ['edit-lifestyle', 'lifestyle'],
+           ['edit-giving', 'giving'],
+           
+           // Activos
            ['edit-liquid-assets', 'liquid-assets'],
-           ['edit-illiquid-assets', 'illiquid-assets']
+           ['edit-illiquid-assets', 'illiquid-assets'],
+           ['edit-cash', 'cash'],
+           ['edit-emergency-fund', 'emergency-fund'],
+           
+           // Deudas
+           ['edit-consumer-debt', 'consumer-debt'],
+           ['edit-mortgage-debt', 'mortgage-debt'],
+           ['edit-other-debt', 'other-debt']
        ];
        
        mappings.forEach(([editId, sourceId]) => {
@@ -1068,8 +1474,10 @@
            
            if (sourceEl && editEl) {
                editEl.value = sourceEl.value;
+               
                // Configurar evento para recalcular en tiempo real
                editEl.addEventListener('input', debounce(calculateMetrics, 500));
+               editEl.addEventListener('blur', calculateMetrics);
            }
        });
    }
@@ -1088,10 +1496,20 @@
            inputs.forEach(input => {
                if (input.type === 'checkbox') {
                    input.checked = false;
+                   const container = input.closest(`.${WIDGET_PREFIX}-checkbox-item`);
+                   if (container) {
+                       container.classList.remove('selected');
+                   }
                } else {
                    input.value = '';
                }
            });
+           
+           // Limpiar total de No Negociables
+           const totalDisplay = document.getElementById(`${WIDGET_PREFIX}-non-negotiables-total`);
+           if (totalDisplay) {
+               totalDisplay.textContent = '€0';
+           }
        }
    }
    
