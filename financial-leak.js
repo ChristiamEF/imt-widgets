@@ -33,7 +33,7 @@
      */
     const SECURITY_CONFIG = {
         // Dejar el array vacío [] para permitir la ejecución en cualquier dominio.
-        ALLOWED_DOMAINS: ['itsmoneytime.eu'],
+        ALLOWED_DOMAINS: ['itsmoneytime.co'],
         
         savings:  { min: 0, max: 100000000 }, // 100 Millones
         spending: { min: 0, max: 100000 },    // 100 Mil
