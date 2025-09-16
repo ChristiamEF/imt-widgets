@@ -38,7 +38,7 @@
     };
     
     // Validación de origen (opcional - solo si necesitas restricción de dominios)
-    const validateOrigin = () => {
+    /** const validateOrigin = () => {
         if (SECURITY_CONFIG.ALLOWED_DOMAINS.length > 0) {
             const currentDomain = window.location.hostname;
             const isAllowed = SECURITY_CONFIG.ALLOWED_DOMAINS.some(domain => 
@@ -51,7 +51,7 @@
             }
         }
         return true;
-    };
+    };**/
     
     // Verificar contenedor de forma segura
     const container = document.getElementById('financial-leak-widget');
@@ -61,10 +61,10 @@
     }
     
     // Validar origen si es necesario
-    if (!validateOrigin()) {
+    /**if (!validateOrigin()) {
         container.innerHTML = '<p style="color: red;">Widget no autorizado en este dominio.</p>';
         return;
-    }
+    }**/
     
     // CSS con prefijos únicos y !important para evitar sobrescritura
     const styles = `
