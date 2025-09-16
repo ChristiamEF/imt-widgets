@@ -145,11 +145,16 @@
         }
 
         /**
-         * Almacena referencias a los elementos del DOM más utilizados.
+         * Almacena referencias a los elementos del DOM más utilizados para
+         * evitar búsquedas repetitivas en el DOM, mejorando el rendimiento.
          */
         queryDOMElements() {
             this.dom = {
                 stepsContainer: this.container.querySelector(`.${this.namespace}-steps-container`),
+                
+                // LÍNEA AÑADIDA: Guardamos una lista de todos los contenedores de los pasos.
+                steps: this.container.querySelectorAll(`.${this.namespace}-step`),
+
                 prevBtn: this.container.querySelector(`.${this.namespace}-prev-btn`),
                 nextBtn: this.container.querySelector(`.${this.namespace}-next-btn`),
                 restartBtn: this.container.querySelector(`.${this.namespace}-restart-btn`),
@@ -231,6 +236,41 @@
             return temp.innerHTML;
         }
 
+        /**
+         * ========================================================================
+         * NUEVA FUNCIÓN DE ACCESIBILIDAD
+         * ========================================================================
+         */
+
+        /**
+         * Actualiza la accesibilidad del widget, asegurando que solo los elementos
+         * del paso activo sean enfocables mediante el teclado (Tab).
+         * @param {number} activeStepIndex - El índice del paso que debe estar activo.
+         */
+        updateAccessibility(activeStepIndex) {
+            // Itera sobre todos los divs de los pasos que guardamos anteriormente.
+            this.dom.steps.forEach((step, index) => {
+                
+                // Encuentra todos los elementos que pueden recibir foco dentro de este paso.
+                const focusableElements = step.querySelectorAll('input, button');
+                
+                // Determina si este paso es el que está actualmente activo.
+                const isStepActive = (index === activeStepIndex);
+
+                // Aplica o remueve tabindex="-1" a cada elemento enfocable.
+                focusableElements.forEach(element => {
+                    if (isStepActive) {
+                        // Si el paso está activo, el elemento es accesible.
+                        // Se remueve el atributo para que siga el flujo natural del DOM.
+                        element.removeAttribute('tabindex');
+                    } else {
+                        // Si el paso está inactivo, el elemento no es accesible con Tab.
+                        element.setAttribute('tabindex', '-1');
+                    }
+                });
+            });
+        }
+
         // ========================================================================
         // MÉTODOS DE LÓGICA Y NAVEGACIÓN
         // ========================================================================
@@ -284,11 +324,18 @@
         }
         
         /**
-         * Mueve el carrusel de pasos a la posición indicada.
+         * Mueve el carrusel de pasos a la posición indicada y actualiza la accesibilidad.
+         * @param {number} stepIndex - El índice del paso al que se debe navegar.
          */
         navigateToStep(stepIndex) {
+            // 1. Mueve la "tira de película" visualmente.
             this.dom.stepsContainer.style.transform = `translateX(-${stepIndex * 100}%)`;
             this.currentStep = stepIndex;
+
+            // 2. Llama a la nueva función para gestionar el foco y la accesibilidad. (LÍNEA AÑADIDA)
+            this.updateAccessibility(stepIndex);
+
+            // 3. Actualiza el estado de los botones de navegación.
             this.updateButtons();
         }
         
