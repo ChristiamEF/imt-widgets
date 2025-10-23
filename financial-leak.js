@@ -131,10 +131,10 @@
                 .${ns}-button { padding: 12px 20px; border: 2px solid #1a1a1a; border-radius: 12px; background-color: #fff; color: #1a1a1a; font-size: 16px; font-weight: 700; cursor: pointer; transition: all .2s ease; box-shadow: 0 4px 0 #1a1a1a; }
                 .${ns}-button:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #1a1a1a; }
                 .${ns}-results-section { text-align: center; }
-                .${ns}-total-leak { font-size: 36px; font-weight: 800; color: #d32f2f; margin: 10px 0; }
+                .${ns}-total-leak { font-size: 36px; font-weight: 800; color: #c63595; margin: 10px 0; }
                 .${ns}-breakdown { margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 12px; text-align: left; }
                 .${ns}-breakdown p { margin: 8px 0; display: flex; justify-content: space-between; }
-                .${ns}-projection-value { font-size: 36px; font-weight: 800; color: #00a86b; margin: 10px 0; }
+                .${ns}-projection-value { font-size: 36px; font-weight: 800; color: #124ab4; margin: 10px 0; }
             `;
             
             const styleSheet = document.createElement("style");
